@@ -55,6 +55,14 @@
   <node name="controller_spawner" pkg="controller_manager" type="spawner" output="screen" args="joint_state_controller camera_position_controller"/>
   <node name="camera_controller" pkg="exp_assignment3_pkg" type="camera_controller.py" output="screen" />
 
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+
+
+  <!-- Launch RVIZ-->
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find exp_assignment3_pkg)/config/rviz_config.rviz"/>
+  <!--args="-d $(find package_name)/config/rviz_config.rviz" /> --> 
+
 </launch>
 
 
