@@ -58,10 +58,13 @@
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
 
-
   <!-- Launch RVIZ-->
   <node type="rviz" name="rviz" pkg="rviz" args="-d $(find exp_assignment3_pkg)/config/rviz_config.rviz"/>
-  <!--args="-d $(find package_name)/config/rviz_config.rviz" /> --> 
+  
+  <!-- Launch Ball Follower, Image Processor, UI-->
+  <node name="ball_follower" pkg="exp_assignment3_pkg" type="ball_follower.py" output="screen" />
+  <node name="image_processor" pkg="exp_assignment3_pkg" type="image_processor.py" output="screen" />
+  <node name="ui" pkg="exp_assignment3_pkg" type="ui.py" output="screen" />
 
 </launch>
 
