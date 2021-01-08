@@ -66,6 +66,11 @@
   <node name="image_processor" pkg="exp_assignment3_pkg" type="image_processor.py" output="screen" />
   <node name="ui" pkg="exp_assignment3_pkg" type="ui.py" output="screen" />
 
+  <!-- Gmapping -->
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <rosparam command="load" file="$(find exp_assignment3_pkg)/config/gmapping_params.yaml" />
+  </node>
+
 </launch>
 
 
