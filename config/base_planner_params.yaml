@@ -1,4 +1,4 @@
-controller_frequency: 5.0
+controller_frequency: 20.0
 recovery_behaviour_enabled: true
 oscillation_timeout: 3.0
 oscillation_distance: 0.2
@@ -25,7 +25,7 @@ TrajectoryPlannerROS:
   latch_xy_goal_tolerance: true
 
   # Goal Tolerance Parameters
-  yaw_goal_tolerance: 0.1
+  yaw_goal_tolerance: 0.5
   xy_goal_tolerance: 0.2
 
 
@@ -72,8 +72,8 @@ DWAPlannerROS:
   min_vel_theta: 0.2
 
   # Goal Tolerance Parameters
-  yaw_goal_tolerance: 0.7
-  xy_goal_tolerance: 0.5
+  yaw_goal_tolerance: 0.5
+  xy_goal_tolerance: 0.3
   latch_xy_goal_tolerance: true
 
   # # Forward Simulation Parameters
@@ -87,7 +87,7 @@ DWAPlannerROS:
   # # Trajectory scoring parameters
   path_distance_bias: 1.0 # The weighting for how much the controller should stay close to the path it was given
   goal_distance_bias: 0.8  # The weighting for how much the controller should attempt to reach its local goal, also controls speed
-  occdist_scale: 0.1 # The weighting for how much the controller should attempt to avoid obstacles
+  occdist_scale: 0.02 # The weighting for how much the controller should attempt to avoid obstacles
   forward_point_distance: 0.3 # The distance from the center point of the robot to place an additional scoring point, in meters
   stop_time_buffer: 0.2  # The amount of time that the robot must stThe absolute value of the veolicty at which to start scaling the robot's footprint, in m/sop before a collision in order for a trajectory to be considered valid in seconds
   scaling_speed: 0.25 # The absolute value of the veolicty at which to start scaling the robot's footprint, in m/s
