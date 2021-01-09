@@ -89,7 +89,7 @@
   </gazebo> 
 
   <!-- laser -->
-  <gazebo reference="camera_link">
+  <gazebo reference="laser_link">
     <sensor type="gpu_ray" name="head_hokuyo_sensor">
       <pose>0.05 0 0 0 0 0</pose>
       <visualize>false</visualize>
@@ -120,7 +120,7 @@
       </ray>
       <plugin name="gazebo_ros_head_hokuyo_controller" filename="libgazebo_ros_gpu_laser.so">
         <topicName>/scan</topicName>
-        <frameName>camera_link</frameName>
+        <frameName>laser_link</frameName>
       </plugin>
     </sensor>
   </gazebo>

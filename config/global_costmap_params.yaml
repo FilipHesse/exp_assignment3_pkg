@@ -1,0 +1,7 @@
+global_costmap:
+  global_frame: map
+  robot_base_frame: link_chassis
+  track_unknown_space: true
+  plugins:
+    - {name: static,                  type: "costmap_2d::StaticLayer"}
+    - {name: inflation,               type: "costmap_2d::InflationLayer"}

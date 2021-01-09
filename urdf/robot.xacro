@@ -184,6 +184,14 @@
     </actuator>
   </transmission>
 
+  <link name="laser_link"></link>
+
+  <joint name="laser_joint" type="fixed">
+    <origin xyz="0.251 0 0" rpy="0 0 0"/>
+    <parent link="camera_link"/>
+    <child link="laser_link"/>
+  </joint>
+
   <link name="link_castor_axis">
     <!-- pose and inertial -->
     <pose>0 0 0.1 0 0 0</pose>
