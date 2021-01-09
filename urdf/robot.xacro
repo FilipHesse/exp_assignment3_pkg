@@ -55,18 +55,18 @@
   <link name="link_chassis">
     <!-- pose and inertial -->
     <pose>0 0 0.1 0 0 0</pose>
-    <xacro:cuboid_inertial mass="10" length="0.5" width="0.3" height="0.07"/>
+    <xacro:cuboid_inertial mass="10" length="0.5" width="0.5" height="0.07"/>
     <!-- body -->
     <collision name="collision_chassis">
-      <origin rpy="0 0 0" xyz="-0.2 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.5 0.3 0.07"/>
+        <cylinder radius="0.2" length="0.07"/>
       </geometry>
     </collision>
     <visual>
-      <origin rpy="0 0 0" xyz="-0.2 0 0"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <box size="0.5 0.3 0.07"/>
+        <cylinder radius="0.2" length="0.07"/>
       </geometry>
       <material name="blue"/>
     </visual>
@@ -199,7 +199,7 @@
     <xacro:cuboid_inertial mass="0.2" length="0.05" width="0.035" height="0.03"/>
     <!-- body -->
     <collision name="collision_chassis">
-      <origin rpy="0 0 0" xyz="-0.025 0 0"/>
+      <origin rpy="0 0 0" xyz="-0.01 0 0"/>
       <geometry>
         <box size="0.05 0.035 0.03"/>
       </geometry>
@@ -229,7 +229,7 @@
   </link>
 
   <joint name="joint_castor_wheel" type="continuous">
-    <origin rpy="0 0 0" xyz="-0.05 0 -0.015"/>
+    <origin rpy="0 0 0" xyz="-0.03 0 -0.02"/>
     <child link="link_castor_wheel"/>
     <parent link="link_castor_axis"/>
     <axis rpy="0 0 0" xyz="0 1 0"/>
@@ -238,7 +238,7 @@
   </joint>
 
   <joint name="joint_castor_axis" type="continuous">
-    <origin rpy="0 0 0" xyz="-0.45 0 -0.05"/>
+    <origin rpy="0 0 0" xyz="-0.15 0 -0.05"/>
     <child link="link_castor_axis"/>
     <parent link="link_chassis"/>
     <axis rpy="0 0 0" xyz="0 0 1"/>
@@ -246,7 +246,58 @@
     <joint_properties damping="1.0" friction="1.0"/>
   </joint>
 
+  <link name="link_castor_axis2">
+    <!-- pose and inertial -->
+    <pose>0 0 0.1 0 0 0</pose>
+    <xacro:cuboid_inertial mass="0.2" length="0.05" width="0.035" height="0.03"/>
+    <!-- body -->
+    <collision name="collision_chassis">
+      <origin rpy="0 0 0" xyz="-0.01 0 0"/>
+      <geometry>
+        <box size="0.05 0.035 0.03"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.025 0 0"/>
+      <geometry>
+        <box size="0.05 0.035 0.03"/>
+      </geometry>
+    </visual>
+  </link>
 
+  <link name="link_castor_wheel2">
+    <xacro:default_inertial mass="0.2"/>
+    <collision name="link_castor_wheel2_collision">
+      <origin rpy="0 1.5707 1.5707" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.03"/>
+      </geometry>
+    </collision>
+    <visual name="link_castor_wheel2_visual">
+      <origin rpy="0 1.5707 1.5707" xyz="0 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.03"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="joint_castor_wheel2" type="continuous">
+    <origin rpy="0 0 0" xyz="-0.03 0 -0.02"/>
+    <child link="link_castor_wheel2"/>
+    <parent link="link_castor_axis2"/>
+    <axis rpy="0 0 0" xyz="0 1 0"/>
+    <limit effort="10000" velocity="1000"/>
+    <joint_properties damping="1.0" friction="1.0"/>
+  </joint>
+
+  <joint name="joint_castor_axis2" type="continuous">
+    <origin rpy="0 0 0" xyz="0.15 0 -0.05"/>
+    <child link="link_castor_axis2"/>
+    <parent link="link_chassis"/>
+    <axis rpy="0 0 0" xyz="0 0 1"/>
+    <limit effort="10000" velocity="1000"/>
+    <joint_properties damping="1.0" friction="1.0"/>
+  </joint>
 
 
 
