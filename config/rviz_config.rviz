@@ -86,7 +86,17 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        link_castor_axis2:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
         link_castor_wheel:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        link_castor_wheel2:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -212,7 +222,11 @@ Visualization Manager:
           Value: true
         link_castor_axis:
           Value: true
+        link_castor_axis2:
+          Value: true
         link_castor_wheel:
+          Value: true
+        link_castor_wheel2:
           Value: true
         link_chassis:
           Value: true
@@ -238,6 +252,9 @@ Visualization Manager:
             link_chassis:
               link_castor_axis:
                 link_castor_wheel:
+                  {}
+              link_castor_axis2:
+                link_castor_wheel2:
                   {}
               link_left_wheel:
                 {}
@@ -321,6 +338,14 @@ Visualization Manager:
       Shape: Arrow
       Topic: /move_base/current_goal
       Unreliable: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /explore/frontiers
+      Name: MarkerArray
+      Namespaces:
+        frontiers: true
+      Queue Size: 100
       Value: true
   Enabled: true
   Global Options:
