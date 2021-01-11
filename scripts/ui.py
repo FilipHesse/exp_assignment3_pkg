@@ -12,9 +12,6 @@ The programmer has chosen a service over a publisher, because we want to
 make sure no message gets lost.
 
     Requirements:
-        The following parameters need to be set in the ros parameter server:
-            /map_width
-            /map_height
         You can use the launchfile params.launch to set these to some 
         default values
 """

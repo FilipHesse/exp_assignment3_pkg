@@ -90,6 +90,8 @@ class BallFollower:
                 if abs(self.ball_center_x-400) < 30 and abs(desired_radius - self.ball_radius) <= 10:
                     vel.linear.x = 0
                     vel.angular.z = 0
+                    self.pub_cmd_vel.publish(vel)
+                    return
 
                 self.pub_cmd_vel.publish(vel)
 
