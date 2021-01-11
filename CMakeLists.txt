@@ -59,6 +59,7 @@ find_package (OpenCV REQUIRED)
 add_message_files(
   FILES
   BallCenterRadius.msg
+  BallVisible.msg
   Point2d.msg
 )
 

@@ -14,7 +14,9 @@ from sensor_msgs.msg import Image
 
 from std_msgs.msg import Bool
 from std_msgs.msg import Int64
+from std_msgs.msg import String
 from exp_assignment3_pkg.msg import BallCenterRadius
+from exp_assignment3_pkg.msg import BallVisible
 
 class ColoredBall:
     def __init__(self, color_str, lower_bound, upper_bound):
@@ -40,7 +42,7 @@ class ImageProcessor:
         """
         self.counter = 0
         self.pub_img = rospy.Publisher("camera1/image_processed", Image, queue_size=1)
-        self.pub_vis = rospy.Publisher("camera1/ball_visible", Bool, queue_size=1)
+        self.pub_vis = rospy.Publisher("camera1/ball_visible", BallVisible, queue_size=1)
         self.pub_cr = rospy.Publisher( "camera1/ball_center_radius", BallCenterRadius, queue_size=1)
         self.number_subscriber = rospy.Subscriber("camera1/image_raw", Image, self.callback_raw_image)
 
@@ -104,7 +106,11 @@ class ImageProcessor:
 
 
         self.pub_img.publish((self.bridge.cv2_to_imgmsg(self.image, 'bgr8')))
-        self.pub_vis.publish(biggest_ball.visible)
+        
+        vis = BallVisible()
+        vis.visible = Bool(biggest_ball.visible)
+        vis.color = String(biggest_ball.color_str)
+        self.pub_vis.publish(vis)
 
         cr = BallCenterRadius()
         cr.visible = Bool(biggest_ball.visible)
