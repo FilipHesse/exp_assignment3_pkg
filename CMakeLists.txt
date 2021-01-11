@@ -67,6 +67,7 @@ add_message_files(
 add_service_files(
   FILES
   PetCommand.srv
+  GetPosition.srv
  )
 
 ## Generate actions in the 'action' folder
@@ -74,6 +75,7 @@ add_service_files(
    FILES
    #Planning.action
    Empty.action
+   SetTargetPosition.action
  )
 
 ## Generate added messages and services with any dependencies listed here
