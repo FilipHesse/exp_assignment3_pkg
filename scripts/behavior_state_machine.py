@@ -32,8 +32,7 @@ import random
 import smach_ros
 import states
 import tf
-
-
+import cfg
 
 class PetCommandServer:
     """Server to process Pet Commands
@@ -127,7 +126,7 @@ class SetTargetActionClient():
         rospy.loginfo("Waiting for action server to come up...")
         self.client.wait_for_server()
 
-    def call_action(self, x, y):
+    def call_action(self, room):
         """Use this function to set a new target position of the robot_pet  
 
         Args:
@@ -139,6 +138,7 @@ class SetTargetActionClient():
         self.ready_for_new_target = False
 
         ag = MoveBaseGoal()
+        ag.target_pose.header.frame_id = "map"
         ag.target_pose.pose.position.x = float(x)
         ag.target_pose.pose.position.y = float(y)
         ag.target_pose.pose.position.z = float(0)
@@ -223,7 +223,9 @@ if __name__ == "__main__":
     """
     rospy.init_node('behavior_state_machine')
 
-    
+
+
+
     pet_command_server = PetCommandServer()
     set_target_action_client = SetTargetActionClient()
     sleeping_timer = SleepingTimer()

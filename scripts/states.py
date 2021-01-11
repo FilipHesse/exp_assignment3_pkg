@@ -2,6 +2,7 @@ import smach
 import random
 import smach_ros
 import rospy
+import cfg
 
 
 ########################################################
@@ -237,8 +238,8 @@ class Play(smach.State):
 
                 if cmd.command =='go_to':
                     valid_target = True
-                    x = cmd.point.x
-                    y = cmd.point.y
+                    room = cmd.room
+
 
             # Send pointer position to map
             # pointer_pos = Point2dOnOff()
