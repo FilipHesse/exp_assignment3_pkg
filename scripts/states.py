@@ -3,7 +3,9 @@ import random
 import smach_ros
 import rospy
 import cfg
+import numpy as np
 from nav_msgs.msg import OccupancyGrid
+from map_msgs.msg import OccupancyGridUpdate
 
 
 ########################################################
@@ -39,14 +41,23 @@ class Normal(smach.State):
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
         self.sleeping_timer = sleeping_timer
-        self.number_subscriber = rospy.Subscriber("/move_base/global_costmap/costmap", OccupancyGrid, self.callback_costmap)
+        self.costmap_subscriber = rospy.Subscriber("/move_base/global_costmap/costmap", OccupancyGrid, self.callback_costmap)
+        self.costmap_update_subscriber = rospy.Subscriber("/move_base/global_costmap/costmap_updates", OccupancyGridUpdate, self.callback_costmap_update)
 
-        self.map_width = 10#rospy.get_param("/map_width")
-        self.map_height = 10#rospy.get_param("/map_height")
+        self.costmap = np.array([])
 
     def callback_costmap(self, msg):
-        self.costmap = msg
-        
+        self.map_width = msg.info.width
+        self.map_height = msg.info.height
+        self.map_resolution = msg.info.resolution
+        self.map_orig_x = msg.info.origin.position.x
+        self.map_orig_y = msg.info.origin.position.y
+        self.costmap = np.array(msg.data).reshape(self.map_height, self.map_width)
+
+    def callback_costmap_update(self, msg):
+        self.map_width = msg.width
+        self.map_height = msg.height
+        self.costmap = np.array(msg.data).reshape(self.map_height, self.map_width)
 
     def execute(self, userdata):
         """ Robot moves around between random positions
@@ -82,15 +93,33 @@ class Normal(smach.State):
 
             # Normal behavior: set random targets
             if self.set_target_action_client.ready_for_new_target:
-                min_x = self.costmap.info.origin.position.x
-                max_x = min_x + self.costmap.info.width * + self.costmap.info.resolution
-                min_y = self.costmap.info.origin.position.y
-                max_y = min_y + self.costmap.info.height * + self.costmap.info.resolution
-                next_x = random.uniform(min_x, max_x)
-                next_y = random.uniform(min_y, max_y)
+                i = 1
+                while self.costmap.size == 0:
+                    if i == 1:
+                        rospy.loginfo("Waiting for costmap in order to generate a target position.")
+                        rate.sleep()
+
+                max_x = self.map_orig_x + self.map_width * self.map_resolution
+                max_y = self.map_orig_y + self.map_height * self.map_resolution
+                # Implement Do.. while loop
+                condition = True
+                while condition:
+                    next_x = random.uniform(self.map_orig_x, max_x)
+                    next_y = random.uniform(self.map_orig_y, max_y)
+                    condition = not self.is_costmap_free(next_x, next_y)
+
                 self.set_target_action_client.call_action(next_x, next_y)
             
             rate.sleep()
+
+    def is_costmap_free(self, x, y):
+        x_idx = int((x - self.map_orig_x)/self.map_resolution)
+        y_idx = int((y - self.map_orig_y)/self.map_resolution)
+
+        if self.costmap[y_idx, x_idx] == 0:
+            return True
+        else:
+            return False
 
 
 
