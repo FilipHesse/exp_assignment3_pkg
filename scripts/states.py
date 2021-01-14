@@ -3,6 +3,7 @@ import random
 import smach_ros
 import rospy
 import cfg
+from nav_msgs.msg import OccupancyGrid
 
 
 ########################################################
@@ -38,9 +39,13 @@ class Normal(smach.State):
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
         self.sleeping_timer = sleeping_timer
+        self.number_subscriber = rospy.Subscriber("/move_base/global_costmap/costmap", OccupancyGrid, self.callback_costmap)
 
         self.map_width = 10#rospy.get_param("/map_width")
         self.map_height = 10#rospy.get_param("/map_height")
+
+    def callback_costmap(self, msg):
+        self.costmap = msg
         
 
     def execute(self, userdata):
@@ -59,15 +64,15 @@ class Normal(smach.State):
         rate = rospy.Rate(10)
         while True:
             # Check if its time to sleep
-            if self.sleeping_timer.time_to_sleep:
-                while not self.set_target_action_client.ready_for_new_target:
-                    rate.sleep()
-                return 'sleeping_time'
+            # if self.sleeping_timer.time_to_sleep:
+            #     while not self.set_target_action_client.ready_for_new_target:
+            #         rate.sleep()
+            #     return 'sleeping_time'
 
             # React to user commands
             if self.pet_command_server.is_new_command_available():
                 cmd = self.pet_command_server.get_new_command()
-                if cmd.command == 'play':
+                if cmd.command == 'play' :
                     #First reach next position then go to sleeping state
                     while not self.set_target_action_client.ready_for_new_target:
                         rate.sleep()
@@ -77,8 +82,12 @@ class Normal(smach.State):
 
             # Normal behavior: set random targets
             if self.set_target_action_client.ready_for_new_target:
-                next_x = random.randint(0,self.map_width-1)
-                next_y = random.randint(0,self.map_height-1) 
+                min_x = self.costmap.info.origin.position.x
+                max_x = min_x + self.costmap.info.width * + self.costmap.info.resolution
+                min_y = self.costmap.info.origin.position.y
+                max_y = min_y + self.costmap.info.height * + self.costmap.info.resolution
+                next_x = random.uniform(min_x, max_x)
+                next_y = random.uniform(min_y, max_y)
                 self.set_target_action_client.call_action(next_x, next_y)
             
             rate.sleep()

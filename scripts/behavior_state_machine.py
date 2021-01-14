@@ -126,7 +126,7 @@ class SetTargetActionClient():
         rospy.loginfo("Waiting for action server to come up...")
         self.client.wait_for_server()
 
-    def call_action(self, room):
+    def call_action(self, x, y):
         """Use this function to set a new target position of the robot_pet  
 
         Args:
@@ -165,7 +165,7 @@ class SetTargetActionClient():
             result (SetTargetPositionResult): Result of action: Position of the point
                 that was reached
         """
-        rospy.loginfo("SetTargetAction is done, position x={} y={} reached. Action state: {}".format(result.final_position.x, result.final_position.y, state))
+        rospy.loginfo("MoveBaseAction is done! State: {}".format(state))
         self.ready_for_new_target = True
 
 
@@ -222,9 +222,6 @@ if __name__ == "__main__":
     machine with all the states and spins for callbacks
     """
     rospy.init_node('behavior_state_machine')
-
-
-
 
     pet_command_server = PetCommandServer()
     set_target_action_client = SetTargetActionClient()
