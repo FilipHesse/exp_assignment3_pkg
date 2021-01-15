@@ -74,11 +74,11 @@ class Normal(smach.State):
         rospy.loginfo('----------------------------------------------\n------------------------------ ENTERING STATE NORMAL ---\n--------------------------------------------------------------------------')
         rate = rospy.Rate(10)
         while True:
-            # Check if its time to sleep
-            # if self.sleeping_timer.time_to_sleep:
-            #     while not self.set_target_action_client.ready_for_new_target:
-            #         rate.sleep()
-            #     return 'sleeping_time'
+            #Check if its time to sleep
+            if self.sleeping_timer.time_to_sleep:
+                while not self.set_target_action_client.ready_for_new_target:
+                    rate.sleep()
+                return 'sleeping_time'
 
             # React to user commands
             if self.pet_command_server.is_new_command_available():
@@ -162,15 +162,15 @@ class Sleep(smach.State):
         rospy.loginfo('----------------------------------------------\n------------------------------ ENTERING STATE SLEEP ---\n--------------------------------------------------------------------------')
         rate = rospy.Rate(10)
         
-        # Robot might still be moving => wait until last target reached
-        while not self.set_target_action_client.ready_for_new_target:
-            rate.sleep()
+        # # Robot might still be moving => wait until last target reached
+        # while not self.set_target_action_client.ready_for_new_target:
+        #     rate.sleep()
         
         #Get position of house
         # x,y = get_position_client.call_srv("house")
         
         #Set new target: house
-        set_target_action_client.call_action(x,y)
+        self.set_target_action_client.call_action(rospy.get_param("/house_x"),rospy.get_param("/house_y"))
 
         #just wait until wake-up flag is set
         while True:
