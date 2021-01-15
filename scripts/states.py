@@ -4,8 +4,10 @@ import smach_ros
 import rospy
 import room_info
 import numpy as np
+import tf
 from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
+from actionlib_msgs.msg import GoalID, GoalStatus
 
 
 ########################################################
@@ -36,7 +38,8 @@ class Normal(smach.State):
             sleeping_timer (SleepingTimer): See class description
         """
 
-        smach.State.__init__(self, outcomes=['cmd_play','sleeping_time','track'])
+        smach.State.__init__(self, outcomes=['cmd_play','sleeping_time','track'],
+                                   output_keys=['ball_color'])
         
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
@@ -94,6 +97,7 @@ class Normal(smach.State):
             if self.ball_visible_subscriber.is_ball_visible() and not room_info.is_color_known(self.ball_visible_subscriber.color):
                 rospy.loginfo(f"Ball of unknown color ({self.ball_visible_subscriber.color})detected. Switch to state tracking")
                 self.set_target_action_client.client.cancel_all_goals()
+                userdata.ball_color = self.ball_visible_subscriber.color
                 return 'track'
 
             # Normal behavior: set random targets
@@ -284,7 +288,7 @@ class Play(smach.State):
                     valid_target = True
                     room_name = cmd.room
 
-            target_room_info = room_info.get_room_info_by_name(name)
+            target_room_info = room_info.get_room_info_by_name(room_name)
 
             #Go To Target
             self.set_target_action_client.call_action(target_room_info.x,target_room_info.y)
@@ -315,7 +319,15 @@ class Track(smach.State):
     def __init__(self, ball_visible_subscriber, follow_ball_action_client):
         self.ball_visible_subscriber = ball_visible_subscriber
         self.follow_ball_action_client = follow_ball_action_client
-        smach.State.__init__(self, outcomes=['tracking_done'])
+        smach.State.__init__(self, outcomes=['tracking_done'],
+                                   input_keys=['ball_color'])
+
+        self.listener = tf.TransformListener()
+
+        hz = 10
+        self.rate = rospy.Rate(hz)
+        no_ball_seconds = 3
+        self.iterations_no_ball = no_ball_seconds * hz
 
     def execute(self, userdata):
         rospy.loginfo('Executing state TRACK')
@@ -323,7 +335,7 @@ class Track(smach.State):
         counter_no_ball = 0
 
         # Call action client!
-        follow_ball_action_client.call_action()
+        self.follow_ball_action_client.call_action()
 
         while True:
             # If can not see ball for 3 seconds: abort running action and go back to normal state
@@ -334,11 +346,33 @@ class Track(smach.State):
 
             # ball moved away again
             if counter_no_ball >= self.iterations_no_ball:
+                rospy.loginfo("lost ball while tracking => abort tracking")
                 self.cancel_goal_and_wait_till_done()
                 return 'tracking_done'
 
-            self.rate.sleep()
-
+            if self.follow_ball_action_client.done_successful():
+                target_room_info = room_info.get_room_info_by_color(userdata.ball_color)
+                try:
+                    (trans,rot) = self.listener.lookupTransform('/map', '/link_chassis', rospy.Time(0))
+                    target_room_info.x = trans[0]
+                    target_room_info.y = trans[1]
+                except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                    target_room_info.x = None
+                    target_room_info.y = None
+                
+                return 'tracking_done'
             #Check if goal reached!! and save current position to room
 
-        return 'tracking_done'
+            self.rate.sleep()
+
+    def cancel_goal_and_wait_till_done(self):
+        """Cancels goal and waits till server has really stopped
+
+        Args:
+            rate (rospy.Rate): rate for polling sleep
+        """
+        if self.follow_ball_action_client.is_active():
+            self.follow_ball_action_client.cancel_goal()
+            # Wait unitl client indeed is not active anymore (robot should have stopped)
+            while self.follow_ball_action_client.is_active():
+                self.rate.sleep()

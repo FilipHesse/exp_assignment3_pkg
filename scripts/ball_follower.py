@@ -91,6 +91,7 @@ class BallFollower:
                     vel.linear.x = 0
                     vel.angular.z = 0
                     self.pub_cmd_vel.publish(vel)
+                    self.server.set_succeeded(True)
                     return
 
                 self.pub_cmd_vel.publish(vel)

@@ -304,6 +304,12 @@ class FollowBallActionClient():
         """
         return self.client.get_state() == GoalStatus.ACTIVE
 
+    def done_successful(self):
+        if self.client.get_state() == GoalStatus.SUCCEEDED:
+            return True
+        else:
+            return False
+
 
 if __name__ == "__main__":
     """Main function of this script

@@ -87,7 +87,7 @@ class ImageProcessor:
 
         colored_balls = [   ColoredBall('green',(50, 50, 20),(70, 255, 255)),
                             ColoredBall('yellow',(25, 50, 20),(32, 255, 255)),
-                            ColoredBall('red',(0, 50, 20),(12, 255, 255)),
+                            ColoredBall('red',(0, 50, 100),(12, 255, 255)),
                             ColoredBall('blue',(105, 50, 20),(135, 255, 255)),
                             ColoredBall('pink',(143, 50, 20),(160, 255, 255)),
                             ColoredBall('black',(0, 0, 0),(179, 255, 10))]
