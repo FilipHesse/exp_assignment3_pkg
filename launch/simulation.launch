@@ -34,8 +34,13 @@
   <param name="house_x" value="-5." />
   <param name="house_y" value="5." />
 
+  <!-- Configure User Position -->
   <param name="user_x" value="-4.9" />
   <param name="user_y" value="7.6" />
+
+  <!-- Run sleeping timer-->
+  <param name="run_sleeping_timer" value="False" />
+  
 
   <!-- start gazebo server-->
   <group if="$(arg use_clock_frequency)">
@@ -71,7 +76,7 @@
   <!-- Launch Ball Follower, Image Processor, UI-->
   <node name="ball_follower" pkg="exp_assignment3_pkg" type="ball_follower.py" output="screen" />
   <node name="image_processor" pkg="exp_assignment3_pkg" type="image_processor.py" output="screen" />
-  <node name="ui" pkg="exp_assignment3_pkg" type="ui.py" output="screen" />
+  <!-- <node name="ui" pkg="exp_assignment3_pkg" type="ui.py" output="screen" /> -->
 
   <!-- Gmapping -->
   <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">

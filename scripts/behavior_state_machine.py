@@ -24,6 +24,8 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseGoal
 from std_msgs.msg import Float64, Header
 from actionlib_msgs.msg import GoalID
 from geometry_msgs.msg import PoseStamped, Pose
+from exp_assignment3_pkg.msg import EmptyAction, EmptyGoal
+from std_msgs.msg import Bool
 
 import rospy
 import actionlib
@@ -192,7 +194,8 @@ class SleepingTimer():
         self.sleeping_time_range = (10, 15)  #Sleep between 10 and 15 seconds
         self.awake_time_range = (20, 30)  #Be awake for ...
         self.time_to_sleep = False
-        self.timer = rospy.Timer(rospy.Duration(random.uniform(*self.awake_time_range)), self.callback, oneshot=True)
+        if (rospy.get_param("/run_sleeping_timer")):
+            self.timer = rospy.Timer(rospy.Duration(random.uniform(*self.awake_time_range)), self.callback, oneshot=True)
 
     def callback(self, msg):
         """Get called when self.timer has elapsed
@@ -212,6 +215,93 @@ class SleepingTimer():
             rospy.loginfo("It's time to wake up!")
             self.timer = rospy.Timer(rospy.Duration(random.uniform(*self.awake_time_range)), self.callback, oneshot=True)
 
+class BallVisibleSubscriber:
+    """Subscriber, that subscribes to the topic camera1/ball_visible
+    """
+
+    def __init__(self):
+        """Creates the subscriber
+        """
+        self.ball_visible = False
+        self.sub = rospy.Subscriber(
+            "camera1/ball_visible", Bool, self.callback)
+
+    def callback(self, msg):
+        """Publisher callback
+
+        Args:
+            msg (Bool): is ball visible
+        """
+        self.ball_visible = msg.data
+
+    def is_ball_visible(self):
+        """Use this function to check if ball was visible in the last message
+
+        Returns:
+            bool: Is ball visible?
+        """
+        return self.ball_visible
+
+
+class FollowBallActionClient():
+    """Action client to make the robot follow the ball
+
+    An action client has been chosen, because it is a non blocking call.
+
+    Attributes: 
+        client (actionlib.SimpleActionClient): Clientobject to interface with 
+            actual action 
+    """
+
+    def __init__(self):
+        """Creates the client and waits for action server to be available
+        """
+        self.client = actionlib.SimpleActionClient(
+            'follow_ball', EmptyAction)
+        rospy.loginfo(
+            "follow_ball: Waiting for action server to come up...")
+        self.client.wait_for_server()
+
+    def call_action(self):
+        """Use this function to make the robot follow the ball  
+        """
+
+        rospy.loginfo(
+            "follow_ball: Action server has been called")
+
+        if self.is_active():
+            rospy.loginfo(
+                "follow_ball: Trying to follow ball, but action server already busy doing it")
+            return
+
+        goal = EmptyGoal()
+        self.client.send_goal(goal,
+                              done_cb=self.callback_done)
+
+    def callback_done(self, state, result):
+        """This callback gets called when action server is done
+
+        Args:
+            state (state of action): Status of the action according to
+                http://docs.ros.org/en/kinetic/api/actionlib_msgs/html/msg/GoalStatus.html
+            result (SetTargetPositionResult): Result of action: Position of the point
+                that was reached
+        """
+        rospy.loginfo(
+            "FollowBallAction is done. Action state: {}".format(state))
+
+    def cancel_goal(self):
+        """Cancel current goal of action server
+        """
+        self.client.cancel_goal()
+
+    def is_active(self):
+        """Is action server currently processing a goal?
+
+        Returns:
+            bool: is action server currently processing a goal
+        """
+        return self.client.get_state() == GoalStatus.ACTIVE
 
 
 if __name__ == "__main__":
@@ -225,16 +315,30 @@ if __name__ == "__main__":
     pet_command_server = PetCommandServer()
     set_target_action_client = SetTargetActionClient()
     sleeping_timer = SleepingTimer()
+    follow_ball_action_client = FollowBallActionClient()
+    ball_visible_subscriber = BallVisibleSubscriber()
 
     # Create a SMACH state machine
     sm_top = smach.StateMachine(outcomes=[])
 
     # Open the container
     with sm_top:
+
+        sm_normal = smach.StateMachine(outcomes=['normal_cmd_play','normal_sleeping_time'])
         # Add states to the container
-        smach.StateMachine.add('NORMAL', states.Normal(pet_command_server, set_target_action_client, sleeping_timer), 
-                               transitions={'cmd_play':'PLAY', 
-                                            'sleeping_time':'SLEEP'})
+        with sm_normal:
+
+            # Add states to the container 
+            smach.StateMachine.add('NORMAL_DEFAULT', states.Normal(pet_command_server, set_target_action_client, sleeping_timer), 
+                               transitions={'cmd_play':'normal_cmd_play', 
+                                            'sleeping_time':'normal_sleeping_time',
+                                            'track':'NORMAL_TRACK'})
+            smach.StateMachine.add('NORMAL_TRACK', states.Track(),
+                                   transitions={'tracking_done':'NORMAL_DEFAULT'})
+
+        smach.StateMachine.add('NORMAL', sm_normal,
+                               transitions={'normal_cmd_play':'PLAY', 
+                                            'normal_sleeping_time':'SLEEP'})
 
         smach.StateMachine.add('SLEEP', states.Sleep(pet_command_server, set_target_action_client, sleeping_timer), 
                                transitions={'slept_enough':'NORMAL'})

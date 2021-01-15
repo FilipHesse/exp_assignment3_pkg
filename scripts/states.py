@@ -36,7 +36,7 @@ class Normal(smach.State):
             sleeping_timer (SleepingTimer): See class description
         """
 
-        smach.State.__init__(self, outcomes=['cmd_play','sleeping_time'])
+        smach.State.__init__(self, outcomes=['cmd_play','sleeping_time','track'])
         
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
@@ -278,22 +278,16 @@ class Play(smach.State):
                     room_name = cmd.room
 
             target_room = [room for room in room_info.info if room.name==room_name][0]
+
             #Go To Target
-            set_target_action_client.call_action(x,y)
+            self.set_target_action_client.call_action(target_room.x,target_room.y)
             
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
                 rate.sleep()
-
-            # Send pointer position to map
-            #pointer_pos.on =  False     #SWITCH OFF
-            #self.pub.publish(pointer_pos)
-
-            #Get Persons Position
-            # x,y = get_position_client.call_srv("user")
             
             #Go To Person
-            set_target_action_client.call_action(x,y)
+            self.set_target_action_client.call_action(rospy.get_param("/user_x"),rospy.get_param("/user_y"))
             
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
@@ -309,3 +303,11 @@ class Play(smach.State):
                 return 'played_enough'
 
             rate.sleep()
+
+class Track(smach.State):
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['tracking_done'])
+
+    def execute(self, userdata):
+        rospy.loginfo('Executing state TRACK')
+        return 'tracking_done'
