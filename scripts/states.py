@@ -2,7 +2,7 @@ import smach
 import random
 import smach_ros
 import rospy
-import cfg
+import room_info
 import numpy as np
 from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
@@ -83,9 +83,8 @@ class Normal(smach.State):
             if self.pet_command_server.is_new_command_available():
                 cmd = self.pet_command_server.get_new_command()
                 if cmd.command == 'play' :
-                    #First reach next position then go to sleeping state
-                    while not self.set_target_action_client.ready_for_new_target:
-                        rate.sleep()
+                    # Abort all current goals
+                    self.set_target_action_client.client.cancel_all_goals()
                     return 'cmd_play'
                 if cmd.command =='go_to':
                     rospy.loginfo("Invalid command 'go_to' for state NORMAL. First say 'play' and then give go_to commands!")
@@ -251,7 +250,8 @@ class Play(smach.State):
             #Get Persons Position
             # x,y = get_position_client.call_srv("user")
             #Go To Person
-            set_target_action_client.call_action(x,y)
+            
+            self.set_target_action_client.call_action(rospy.get_param("/user_x"),rospy.get_param("/user_y"))
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
                 rate.sleep()
@@ -275,16 +275,9 @@ class Play(smach.State):
 
                 if cmd.command =='go_to':
                     valid_target = True
-                    room = cmd.room
+                    room_name = cmd.room
 
-
-            # Send pointer position to map
-            # pointer_pos = Point2dOnOff()
-            # pointer_pos.point.x = x
-            # pointer_pos.point.y = y
-            # pointer_pos.on =  True  #SWITCH ON
-            # self.pub.publish(pointer_pos)
-
+            target_room = [room for room in room_info.info if room.name==room_name][0]
             #Go To Target
             set_target_action_client.call_action(x,y)
             

@@ -34,6 +34,9 @@
   <param name="house_x" value="-5." />
   <param name="house_y" value="5." />
 
+  <param name="user_x" value="-4.9" />
+  <param name="user_y" value="7.6" />
+
   <!-- start gazebo server-->
   <group if="$(arg use_clock_frequency)">
     <param name="gazebo/pub_clock_frequency" value="$(arg pub_clock_frequency)" />
@@ -76,7 +79,7 @@
   </node>
 
   <!-- Move Base-->
-  <!-- <include file="$(find exp_assignment3_pkg)/launch/move_base.launch" pass_all_args="true"/> -->
+  <include file="$(find exp_assignment3_pkg)/launch/move_base.launch" pass_all_args="true"/>
 
   <!-- Explore_lite-->
   <include file="$(find explore_lite)/launch/explore.launch" pass_all_args="true"/>

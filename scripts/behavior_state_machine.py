@@ -32,7 +32,6 @@ import random
 import smach_ros
 import states
 import tf
-import cfg
 
 class PetCommandServer:
     """Server to process Pet Commands
@@ -71,7 +70,7 @@ class PetCommandServer:
             [PetCommandResponse]: Empty response
         """
 
-        rospy.loginfo("Command received: {} {} {}".format(req.command, req.point.x, req.point.y))
+        rospy.loginfo("Command received: {} {}".format(req.command, req.room))
         self._command = req
         self._new_command_available = True
         return PetCommandResponse()

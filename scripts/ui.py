@@ -18,7 +18,7 @@ make sure no message gets lost.
 
 from __future__ import print_function
 import rospy
-from exp_assignment3_pkg.srv import *
+from exp_assignment3_pkg.srv import PetCommand, PetCommandRequest
 import random
 
 def pet_command_client():
@@ -35,8 +35,7 @@ def pet_command_client():
     rospy.logdebug("Wait for service pet_command to be available")
     rospy.wait_for_service('pet_command')
 
-    map_width = rospy.get_param("/map_width")
-    map_height = rospy.get_param("/map_height")
+    rooms = ["entrance","closet","living_room", "kitchen", "bathroom", "bedroom"]
 
     counter = 0
     while not rospy.is_shutdown():
@@ -51,15 +50,13 @@ def pet_command_client():
             #place within the range
             if (counter % 5) == 2:  # 2 because we do not want the very first command to be a play command
                 request.command = "play"
-                request.point.x = 0 #Values for x and y don't matter
-                request.point.y = 0 
+                request.room = "" #Room does not matter
             else:
                 request.command = "go_to"
-                request.point.x = random.randint(0,map_width-1)
-                request.point.y = random.randint(0,map_height-1) 
+                request.room = random.choice(rooms)
             
-            rospy.loginfo("User sending command: {} x={} y={}".format(request.command, request.point.x, request.point.y))
-            res = pet_command(request)
+            rospy.loginfo(f"User sending command: {request.command} ,room: {request.room}")
+            pet_command(request)
             
         except rospy.ServiceException as e:
             rospy.loginfo("Service call failed: %s"%e)
