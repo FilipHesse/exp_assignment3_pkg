@@ -76,8 +76,7 @@ class Normal(smach.State):
         while True:
             #Check if its time to sleep
             if self.sleeping_timer.time_to_sleep:
-                while not self.set_target_action_client.ready_for_new_target:
-                    rate.sleep()
+                self.set_target_action_client.client.cancel_all_goals()
                 return 'sleeping_time'
 
             # React to user commands
