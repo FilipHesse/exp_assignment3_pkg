@@ -22,9 +22,9 @@ from __future__ import print_function
 from exp_assignment3_pkg.srv import PetCommand, PetCommandResponse, PetCommandRequest, GetPosition, GetPositionRequest
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseGoal
 from std_msgs.msg import Float64, Header
-from actionlib_msgs.msg import GoalID
+from actionlib_msgs.msg import GoalID, GoalStatus
 from geometry_msgs.msg import PoseStamped, Pose
-from exp_assignment3_pkg.msg import EmptyAction, EmptyGoal
+from exp_assignment3_pkg.msg import EmptyAction, EmptyGoal, BallVisible
 from std_msgs.msg import Bool
 
 import rospy
@@ -224,7 +224,7 @@ class BallVisibleSubscriber:
         """
         self.ball_visible = False
         self.sub = rospy.Subscriber(
-            "camera1/ball_visible", Bool, self.callback)
+            "camera1/ball_visible", BallVisible, self.callback)
 
     def callback(self, msg):
         """Publisher callback
@@ -232,7 +232,8 @@ class BallVisibleSubscriber:
         Args:
             msg (Bool): is ball visible
         """
-        self.ball_visible = msg.data
+        self.ball_visible = msg.visible.data
+        self.color = msg.color.data
 
     def is_ball_visible(self):
         """Use this function to check if ball was visible in the last message
@@ -329,11 +330,11 @@ if __name__ == "__main__":
         with sm_normal:
 
             # Add states to the container 
-            smach.StateMachine.add('NORMAL_DEFAULT', states.Normal(pet_command_server, set_target_action_client, sleeping_timer), 
+            smach.StateMachine.add('NORMAL_DEFAULT', states.Normal(pet_command_server, set_target_action_client, sleeping_timer, ball_visible_subscriber), 
                                transitions={'cmd_play':'normal_cmd_play', 
                                             'sleeping_time':'normal_sleeping_time',
                                             'track':'NORMAL_TRACK'})
-            smach.StateMachine.add('NORMAL_TRACK', states.Track(),
+            smach.StateMachine.add('NORMAL_TRACK', states.Track(ball_visible_subscriber, follow_ball_action_client),
                                    transitions={'tracking_done':'NORMAL_DEFAULT'})
 
         smach.StateMachine.add('NORMAL', sm_normal,

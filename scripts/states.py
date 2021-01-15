@@ -26,7 +26,7 @@ class Normal(smach.State):
         map_height (int): Height of map to choose appropriate target positions
     """
 
-    def __init__(self, pet_command_server, set_target_action_client, sleeping_timer):
+    def __init__(self, pet_command_server, set_target_action_client, sleeping_timer, ball_visible_subscriber):
         """Initializes attributes and reads ros parameters (width, height)
 
         Args:
@@ -41,6 +41,7 @@ class Normal(smach.State):
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
         self.sleeping_timer = sleeping_timer
+        self.ball_visible_subscriber = ball_visible_subscriber
         self.costmap_subscriber = rospy.Subscriber("/move_base/global_costmap/costmap", OccupancyGrid, self.callback_costmap)
         self.costmap_update_subscriber = rospy.Subscriber("/move_base/global_costmap/costmap_updates", OccupancyGridUpdate, self.callback_costmap_update)
 
@@ -88,6 +89,12 @@ class Normal(smach.State):
                     return 'cmd_play'
                 if cmd.command =='go_to':
                     rospy.loginfo("Invalid command 'go_to' for state NORMAL. First say 'play' and then give go_to commands!")
+
+            # Track ball if new ball visible
+            if self.ball_visible_subscriber.is_ball_visible() and not room_info.is_color_known(self.ball_visible_subscriber.color):
+                rospy.loginfo(f"Ball of unknown color ({self.ball_visible_subscriber.color})detected. Switch to state tracking")
+                self.set_target_action_client.client.cancel_all_goals()
+                return 'track'
 
             # Normal behavior: set random targets
             if self.set_target_action_client.ready_for_new_target:
@@ -277,10 +284,10 @@ class Play(smach.State):
                     valid_target = True
                     room_name = cmd.room
 
-            target_room = [room for room in room_info.info if room.name==room_name][0]
+            target_room_info = room_info.get_room_info_by_name(name)
 
             #Go To Target
-            self.set_target_action_client.call_action(target_room.x,target_room.y)
+            self.set_target_action_client.call_action(target_room_info.x,target_room_info.y)
             
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
@@ -305,9 +312,33 @@ class Play(smach.State):
             rate.sleep()
 
 class Track(smach.State):
-    def __init__(self):
+    def __init__(self, ball_visible_subscriber, follow_ball_action_client):
+        self.ball_visible_subscriber = ball_visible_subscriber
+        self.follow_ball_action_client = follow_ball_action_client
         smach.State.__init__(self, outcomes=['tracking_done'])
 
     def execute(self, userdata):
         rospy.loginfo('Executing state TRACK')
+        
+        counter_no_ball = 0
+
+        # Call action client!
+        follow_ball_action_client.call_action()
+
+        while True:
+            # If can not see ball for 3 seconds: abort running action and go back to normal state
+            if not self.ball_visible_subscriber.is_ball_visible():
+                counter_no_ball += 1
+            else:
+                counter_no_ball = 0
+
+            # ball moved away again
+            if counter_no_ball >= self.iterations_no_ball:
+                self.cancel_goal_and_wait_till_done()
+                return 'tracking_done'
+
+            self.rate.sleep()
+
+            #Check if goal reached!! and save current position to room
+
         return 'tracking_done'
