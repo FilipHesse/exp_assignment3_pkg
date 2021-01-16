@@ -224,7 +224,7 @@ class Play(smach.State):
             set_target_action_client (SetTargetActionClient): See class description
             sleeping_timer (SleepingTimer): See class description
         """
-        smach.State.__init__(self, outcomes=['played_enough','sleeping_time', 'track'],
+        smach.State.__init__(self, outcomes=['played_enough','sleeping_time', 'find'],
                                    output_keys=['find_color'])
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
@@ -297,7 +297,7 @@ class Play(smach.State):
                 self.set_target_action_client.call_action(target_room_info.x,target_room_info.y)
             else:
                 userdata.find_color=target_room_info.color
-                return 'track'
+                return 'find'
             
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
@@ -392,7 +392,7 @@ class Find(smach.State):
         self.ball_visible_subscriber = ball_visible_subscriber
         self.explore_start = rospy.ServiceProxy('/explore/start', Empty)
         self.explore_stop = rospy.ServiceProxy('/explore/stop', Empty)
-        self.find_color
+        #self.find_color
 
         hz = 10
         self.rate = rospy.Rate(hz)
@@ -408,8 +408,8 @@ class Find(smach.State):
             pass
 
         #Do I already know the location of this color?
-        target_room = room_info.get_room_info_by_color(self.color)
-        if room_info.is_color_known(self.color):
+        target_room = room_info.get_room_info_by_color(self.find_color)
+        if room_info.is_color_known(self.find_color):
             return 'target_location_found' #Yes -> GoTo PLAY
         else:
             req = EmptyRequest()
@@ -420,6 +420,10 @@ class Find(smach.State):
             #Seeing unknown ball?
             #-> Go to track
             if self.ball_visible_subscriber.is_ball_visible() and not room_info.is_color_known(self.ball_visible_subscriber.color):
+                #stop exploring
+                req = EmptyRequest()
+                self.explore_stop.call(req)
+                #go to state track
                 userdata.track_color = self.ball_visible_subscriber.color
                 return 'track'
 

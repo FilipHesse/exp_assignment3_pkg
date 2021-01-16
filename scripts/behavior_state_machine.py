@@ -352,10 +352,11 @@ if __name__ == "__main__":
 
         smach.StateMachine.add('PLAY', states.Play(pet_command_server, set_target_action_client, sleeping_timer), 
                                transitions={'played_enough':'NORMAL',
-                                            'sleeping_time':'SLEEP' })
+                                            'sleeping_time':'SLEEP',
+                                            'find':'FIND' })
 
         sm_find = smach.StateMachine(outcomes=['find_target_location_found','find_sleeping_time'],
-                                     input_keys=['ball_color']) 
+                                     input_keys=['find_color']) 
         # Add states to the container
         with sm_find:
 

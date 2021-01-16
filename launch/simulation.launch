@@ -63,9 +63,9 @@
   <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="-urdf -model robot -param robot_description -x -5 -y 8 -Y -1.57 -z 0.05"/>
 
   <!-- Config and load camera/head controller-->
-  <rosparam file="$(find exp_assignment3_pkg)/config/motors_config.yaml" command="load" />
+  <!-- <rosparam file="$(find exp_assignment3_pkg)/config/motors_config.yaml" command="load" />
   <node name="controller_spawner" pkg="controller_manager" type="spawner" output="screen" args="joint_state_controller camera_position_controller"/>
-  <node name="camera_controller" pkg="exp_assignment3_pkg" type="camera_controller.py" output="screen" />
+  <node name="camera_controller" pkg="exp_assignment3_pkg" type="camera_controller.py" output="screen" /> -->
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />

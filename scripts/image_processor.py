@@ -98,25 +98,25 @@ class ImageProcessor:
         for ball in colored_balls:
             self.comp_ball_center_radius(hsv, ball)
 
-        biggest_ball = max(colored_balls, key=lambda x : x.radius)
-        if biggest_ball.visible:
-            cv2.circle(self.image, biggest_ball.center, int(biggest_ball.radius),
+        most_central_ball = min(colored_balls, key=lambda x : abs(x.center[0]-msg.width/2))
+        if most_central_ball.visible:
+            cv2.circle(self.image, most_central_ball.center, int(most_central_ball.radius),
                         (0, 255, 255), 2)
-            cv2.circle(self.image, biggest_ball.center, 5, (0, 0, 255), -1)
+            cv2.circle(self.image, most_central_ball.center, 5, (0, 0, 255), -1)
 
 
         self.pub_img.publish((self.bridge.cv2_to_imgmsg(self.image, 'bgr8')))
         
         vis = BallVisible()
-        vis.visible = Bool(biggest_ball.visible)
-        vis.color = String(biggest_ball.color_str)
+        vis.visible = Bool(most_central_ball.visible)
+        vis.color = String(most_central_ball.color_str)
         self.pub_vis.publish(vis)
 
         cr = BallCenterRadius()
-        cr.visible = Bool(biggest_ball.visible)
-        cr.center_x = Int64(biggest_ball.center[0])
-        cr.center_y = Int64(biggest_ball.center[1])
-        cr.radius = Int64(int(biggest_ball.radius))
+        cr.visible = Bool(most_central_ball.visible)
+        cr.center_x = Int64(most_central_ball.center[0])
+        cr.center_y = Int64(most_central_ball.center[1])
+        cr.radius = Int64(int(most_central_ball.radius))
         self.pub_cr.publish(cr)
 
 

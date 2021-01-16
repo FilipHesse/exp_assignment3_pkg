@@ -146,7 +146,7 @@
     <child link="neck_link"/>
   </joint>
 
-  <link name="camera_link">
+  <link name="head_link">
     <collision>
       <origin xyz="0 0 0.025" rpy="0 0 0"/>
       <geometry>
@@ -165,32 +165,29 @@
     <xacro:cuboid_inertial mass="0.3" length="0.25" width="0.1" height="0.05"/>
   </link>
 
-  <joint name="camera_joint" type="revolute">
-    <axis xyz="0 0 1" />
+  <joint name="head_joint" type="fixed">
+    <!-- <axis xyz="0 0 1" /> -->
     <origin xyz="0 0 0.1" rpy="0 0 0"/>
     <parent link="neck_link"/>
-    <child link="camera_link"/>
-    <limit effort="10000" velocity="1000" lower="${-pi/4}" upper="${pi/4}"/>
-    <joint_properties damping="1.0" friction="1.0"/>
+    <child link="head_link"/>
+    <!-- <limit effort="10000" velocity="1000" lower="${-pi/4}" upper="${pi/4}"/> -->
+    <!-- <joint_properties damping="1.0" friction="1.0"/> -->
   </joint>
-
-  <transmission name="camera_joint_trans">
-    <type>transmission_interface/SimpleTransmission</type>
-    <joint name="camera_joint">
-      <hardwareInterface>EffortJointInterface</hardwareInterface>
-    </joint>
-    <actuator name="motor1">
-      <hardwareInterface>EffortJointInterface</hardwareInterface>
-      <mechanicalInterface>1</mechanicalInterface>
-    </actuator>
-  </transmission>
 
   <link name="laser_link"></link>
 
   <joint name="laser_joint" type="fixed">
     <origin xyz="0.251 0 0" rpy="0 0 0"/>
-    <parent link="camera_link"/>
+    <parent link="head_link"/>
     <child link="laser_link"/>
+  </joint>
+
+  <link name="camera_link"></link>
+
+  <joint name="camera_joint" type="fixed">
+    <origin xyz="0.251 0 0" rpy="0 0 0"/>
+    <parent link="head_link"/>
+    <child link="camera_link"/>
   </joint>
 
   <link name="link_castor_axis">
