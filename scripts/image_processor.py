@@ -71,7 +71,7 @@ class ImageProcessor:
             ball.center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 
             # only proceed if the radius meets a minimum size
-            if ball.radius > 10:
+            if ball.radius > 5:
                 ball.visible = True
 
 

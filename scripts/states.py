@@ -336,13 +336,13 @@ class Track(smach.State):
         self.iterations_no_ball = no_ball_seconds * hz
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state TRACK')
-        
+        rospy.loginfo('----------------------------------------------\n------------------------------ ENTERING STATE TRACK ---\n--------------------------------------------------------------------------')
+
         counter_no_ball = 0
 
         # Call action client!
         self.follow_ball_action_client.call_action()
-
+        rospy.loginfo("Follow Ball action activated")
         while True:
             # If can not see ball for 3 seconds: abort running action and go back to normal state
             if not self.ball_visible_subscriber.is_ball_visible():
@@ -358,13 +358,16 @@ class Track(smach.State):
 
             if self.follow_ball_action_client.done_successful():
                 target_room_info = room_info.get_room_info_by_color(userdata.ball_color)
+                rospy.loginfo(f'{target_room_info.color} ball ({target_room_info.name}) was reached!') 
                 try:
                     (trans,rot) = self.listener.lookupTransform('/map', '/link_chassis', rospy.Time(0))
                     target_room_info.x = trans[0]
                     target_room_info.y = trans[1]
+                    rospy.loginfo('Saving Position ({target_room_info.x},{target_room_info.x})')
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                     target_room_info.x = None
                     target_room_info.y = None
+                    rospy.loginfo('TF between map and link_chassis could not be retrieved, saving position not possible')
                 
                 return 'tracking_done'
             #Check if goal reached!! and save current position to room
@@ -398,6 +401,8 @@ class Find(smach.State):
         self.rate = rospy.Rate(hz)
 
     def execute(self, userdata):
+        rospy.loginfo('----------------------------------------------\n------------------------------ ENTERING STATE FIND ---\n--------------------------------------------------------------------------')
+
         #Which color am I trying to find?
         #Was color given in input key? If not,sear for color in membervariable
         #(Explanation: When coming from track substate, I dont get a new color to search for, only from PLAY)
@@ -407,11 +412,15 @@ class Find(smach.State):
         except NameError:
             pass
 
+        
+
         #Do I already know the location of this color?
         target_room = room_info.get_room_info_by_color(self.find_color)
         if room_info.is_color_known(self.find_color):
+            rospy.loginfo(f'Position of the {self.find_color} ball in known now! Go back to play state')
             return 'target_location_found' #Yes -> GoTo PLAY
         else:
+            rospy.loginfo(f'Trying to find the {self.find_color} ball')
             req = EmptyRequest()
             self.explore_start.call(req)#No -> Activate explore
 
@@ -420,6 +429,7 @@ class Find(smach.State):
             #Seeing unknown ball?
             #-> Go to track
             if self.ball_visible_subscriber.is_ball_visible() and not room_info.is_color_known(self.ball_visible_subscriber.color):
+                rospy.loginfo(f"An unknown ball ({self.ball_visible_subscriber.color})was detected")
                 #stop exploring
                 req = EmptyRequest()
                 self.explore_stop.call(req)

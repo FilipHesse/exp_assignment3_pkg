@@ -310,6 +310,8 @@ class FollowBallActionClient():
         else:
             return False
 
+def status_message_callback(timer):
+    rospy.loginfo("timer_callback")
 
 if __name__ == "__main__":
     """Main function of this script
@@ -324,6 +326,8 @@ if __name__ == "__main__":
     sleeping_timer = SleepingTimer()
     follow_ball_action_client = FollowBallActionClient()
     ball_visible_subscriber = BallVisibleSubscriber()
+
+    status_message_timer = rospy.Timer(rospy.Duration(1), status_message_callback)
 
     # Create a SMACH state machine
     sm_top = smach.StateMachine(outcomes=[])

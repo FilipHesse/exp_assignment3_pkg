@@ -103,8 +103,6 @@ class BallFollower:
             if self.server.is_preempt_requested():
                 vel = Twist()
                 self.pub_cmd_vel.publish(vel)
-                if self.client.get_state() == GoalStatus.ACTIVE:
-                    self.client.cancel_goal()
                 self.server.set_preempted()
                 return
 
