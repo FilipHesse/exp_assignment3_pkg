@@ -6,6 +6,12 @@ class RoomInfo:
         self.name = name 
         self.x = x
         self.y = y
+    
+    def positions_known(self):
+        if self.x == None or self.y == None:
+            return False
+        else:
+            return True
 
 info=[RoomInfo("blue", "entrance"),
     RoomInfo("red", "closet"),
@@ -31,7 +37,5 @@ def get_room_info_by_color(color):
 def is_color_known(color):
     #rospy.loginfo(f"Color: {color}")
     info_element = [room for room in info if room.color==color][0]
-    if info_element.x == None or info_element.y == None:
-        return False
-    else:
-        return True
+    return info_element.positions_known()
+

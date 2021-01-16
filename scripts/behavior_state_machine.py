@@ -354,6 +354,25 @@ if __name__ == "__main__":
                                transitions={'played_enough':'NORMAL',
                                             'sleeping_time':'SLEEP' })
 
+        sm_find = smach.StateMachine(outcomes=['find_target_location_found','find_sleeping_time'],
+                                     input_keys=['ball_color']) 
+        # Add states to the container
+        with sm_find:
+
+            # Add states to the container 
+            smach.StateMachine.add('FIND_DEFAULT', states.Find(ball_visible_subscriber), 
+                               transitions={'target_location_found':'find_target_location_found', 
+                                            'sleeping_time':'find_sleeping_time',
+                                            'track':'FIND_TRACK'})
+            smach.StateMachine.add('FIND_TRACK', states.Track(ball_visible_subscriber, follow_ball_action_client),
+                                   transitions={'tracking_done':'FIND_DEFAULT'},
+                                   remapping={'ball_color':'track_color'})
+
+        smach.StateMachine.add('FIND', sm_find,
+                               transitions={'find_target_location_found':'PLAY', 
+                                            'find_sleeping_time':'SLEEP'})
+                            
+
 
     # Create and start the introspection server
     sis = smach_ros.IntrospectionServer('server_name', sm_top, '/SM_ROOT')

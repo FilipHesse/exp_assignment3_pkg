@@ -7,6 +7,7 @@ import numpy as np
 import tf
 from nav_msgs.msg import OccupancyGrid
 from map_msgs.msg import OccupancyGridUpdate
+from std_srvs.srv import Empty, EmptyRequest
 from actionlib_msgs.msg import GoalID, GoalStatus
 
 
@@ -223,7 +224,8 @@ class Play(smach.State):
             set_target_action_client (SetTargetActionClient): See class description
             sleeping_timer (SleepingTimer): See class description
         """
-        smach.State.__init__(self, outcomes=['played_enough','sleeping_time'])
+        smach.State.__init__(self, outcomes=['played_enough','sleeping_time', 'track'],
+                                   output_keys=['find_color'])
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
         self.sleeping_timer = sleeping_timer
@@ -290,8 +292,12 @@ class Play(smach.State):
 
             target_room_info = room_info.get_room_info_by_name(room_name)
 
-            #Go To Target
-            self.set_target_action_client.call_action(target_room_info.x,target_room_info.y)
+            if target_room_info.positions_known():
+                #Go To Target
+                self.set_target_action_client.call_action(target_room_info.x,target_room_info.y)
+            else:
+                userdata.find_color=target_room_info.color
+                return 'track'
             
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
@@ -376,3 +382,48 @@ class Track(smach.State):
             # Wait unitl client indeed is not active anymore (robot should have stopped)
             while self.follow_ball_action_client.is_active():
                 self.rate.sleep()
+
+class Find(smach.State):
+    def __init__(self, ball_visible_subscriber):
+        smach.State.__init__(self, outcomes=['target_location_found', 'sleeping_time', 'track'],
+                                   input_keys=['find_color'],
+                                   output_keys=['track_color'])
+
+        self.ball_visible_subscriber = ball_visible_subscriber
+        self.explore_start = rospy.ServiceProxy('/explore/start', Empty)
+        self.explore_stop = rospy.ServiceProxy('/explore/stop', Empty)
+        self.find_color
+
+        hz = 10
+        self.rate = rospy.Rate(hz)
+
+    def execute(self, userdata):
+        #Which color am I trying to find?
+        #Was color given in input key? If not,sear for color in membervariable
+        #(Explanation: When coming from track substate, I dont get a new color to search for, only from PLAY)
+        try:
+            color = userdata.find_color
+            self.find_color = color
+        except NameError:
+            pass
+
+        #Do I already know the location of this color?
+        target_room = room_info.get_room_info_by_color(self.color)
+        if room_info.is_color_known(self.color):
+            return 'target_location_found' #Yes -> GoTo PLAY
+        else:
+            req = EmptyRequest()
+            self.explore_start.call(req)#No -> Activate explore
+
+        #While True
+        while( True ):
+            #Seeing unknown ball?
+            #-> Go to track
+            if self.ball_visible_subscriber.is_ball_visible() and not room_info.is_color_known(self.ball_visible_subscriber.color):
+                userdata.track_color = self.ball_visible_subscriber.color
+                return 'track'
+
+            self.rate.sleep()
+
+
+
