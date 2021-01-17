@@ -78,7 +78,7 @@ class BallFollower:
                     #rospy.loginfo("Not aligned")
                     vel.angular.z = 0.004*(400 - self.ball_center_x)
 
-                desired_radius = 120
+                desired_radius = 105
                 # We are aligned but too far or too close
                 if abs(self.ball_center_x-400) < 40 and abs(desired_radius - self.ball_radius) > 10:
                     #rospy.loginfo("Wrong distance")

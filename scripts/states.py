@@ -40,7 +40,7 @@ class Normal(smach.State):
         """
 
         smach.State.__init__(self, outcomes=['cmd_play','sleeping_time','track'],
-                                   output_keys=['ball_color'])
+                                   output_keys=['ball_color','init_games'])
         
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
@@ -90,6 +90,7 @@ class Normal(smach.State):
                 if cmd.command == 'play' :
                     # Abort all current goals
                     self.set_target_action_client.client.cancel_all_goals()
+                    userdata.init_games = True
                     return 'cmd_play'
                 if cmd.command =='go_to':
                     rospy.loginfo("Invalid command 'go_to' for state NORMAL. First say 'play' and then give go_to commands!")
@@ -225,10 +226,13 @@ class Play(smach.State):
             sleeping_timer (SleepingTimer): See class description
         """
         smach.State.__init__(self, outcomes=['played_enough','sleeping_time', 'find'],
-                                   output_keys=['find_color'])
+                                   output_keys=['find_color'],
+                                   input_keys=['init_games'])
         self.pet_command_server = pet_command_server
         self.set_target_action_client = set_target_action_client
         self.sleeping_timer = sleeping_timer
+        self.number_games = 0
+        self.games_to_play = 0
         #self.pub = rospy.Publisher('pointer_position', Point2dOnOff, queue_size=10) #define this publisher only here, because pointer position is not needed anywhere else
 
     def execute(self, userdata):
@@ -244,7 +248,7 @@ class Play(smach.State):
         substeps Details can be viewed inside the code, which is commented. It
         is only checked at the end of each game (after going back to the
         person), if it is time to go to sleep or if the number of games to be
-        played (random between 1 and 3) has been reached.
+        played (random between 2 and 4) has been reached.
 
         Args:
             userdata (---): unused
@@ -255,11 +259,16 @@ class Play(smach.State):
         rospy.loginfo('----------------------------------------------\n------------------------------ ENTERING STATE PLAY ---\n--------------------------------------------------------------------------')
         rate = rospy.Rate(10)
 
-        games_to_play = random.randint(1,3)
+        if userdata.init_games: # Coming from state normal
+            self.games_to_play = random.randint(2,4)
+            self.number_games = 0
+        else:   #Coming from state find
+            self.number_games +=1
+            if self.games_to_play == self.number_games:
+                rospy.loginfo("I played {} games. This is enough".format(self.number_games))
+                return 'played_enough'
 
-        number_games = 0
         while True:
-            number_games += 1
             #Get Persons Position
             # x,y = get_position_client.call_srv("user")
             #Go To Person
@@ -315,8 +324,9 @@ class Play(smach.State):
                 return 'sleeping_time'
 
             #Check if played enough
-            if games_to_play == number_games:
-                rospy.loginfo("I played {} games. This is enough".format(number_games))
+            self.number_games += 1
+            if self.games_to_play == self.number_games:
+                rospy.loginfo("I played {} games. This is enough".format(self.number_games))
                 return 'played_enough'
 
             rate.sleep()
@@ -390,7 +400,7 @@ class Find(smach.State):
     def __init__(self, ball_visible_subscriber):
         smach.State.__init__(self, outcomes=['target_location_found', 'sleeping_time', 'track'],
                                    input_keys=['find_color'],
-                                   output_keys=['track_color'])
+                                   output_keys=['track_color','init_games'])
 
         self.ball_visible_subscriber = ball_visible_subscriber
         self.explore_start = rospy.ServiceProxy('/explore/start', Empty)
@@ -418,6 +428,7 @@ class Find(smach.State):
         target_room = room_info.get_room_info_by_color(self.find_color)
         if room_info.is_color_known(self.find_color):
             rospy.loginfo(f'Position of the {self.find_color} ball in known now! Go back to play state')
+            userdata.init_games = False
             return 'target_location_found' #Yes -> GoTo PLAY
         else:
             rospy.loginfo(f'Trying to find the {self.find_color} ball')

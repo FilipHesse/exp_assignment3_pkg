@@ -24,8 +24,9 @@ from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseGoal
 from std_msgs.msg import Float64, Header
 from actionlib_msgs.msg import GoalID, GoalStatus
 from geometry_msgs.msg import PoseStamped, Pose
-from exp_assignment3_pkg.msg import EmptyAction, EmptyGoal, BallVisible
-from std_msgs.msg import Bool
+from exp_assignment3_pkg.msg import EmptyAction, EmptyGoal, BallVisible, WhatIsGoingOn
+from std_msgs.msg import Bool, String
+from visualization_msgs.msg import Marker
 
 import rospy
 import actionlib
@@ -34,6 +35,7 @@ import random
 import smach_ros
 import states
 import tf
+import room_info
 
 class PetCommandServer:
     """Server to process Pet Commands
@@ -195,7 +197,11 @@ class SleepingTimer():
         self.awake_time_range = (20, 30)  #Be awake for ...
         self.time_to_sleep = False
         if (rospy.get_param("/run_sleeping_timer")):
-            self.timer = rospy.Timer(rospy.Duration(random.uniform(*self.awake_time_range)), self.callback, oneshot=True)
+            duration = rospy.Duration(random.uniform(*self.awake_time_range))
+        else:   #If robot should not sleep: stay awake for a veeeeeerry long time
+            duration = rospy.Duration(1000000000)
+        self.next_callback = rospy.get_rostime() + duration
+        self.timer = rospy.Timer(duration, self.callback, oneshot=True)
 
     def callback(self, msg):
         """Get called when self.timer has elapsed
@@ -210,10 +216,16 @@ class SleepingTimer():
 
         if self.time_to_sleep:
             rospy.loginfo("It's time to go to bed!")
-            self.timer = rospy.Timer(rospy.Duration(random.uniform(*self.sleeping_time_range)), self.callback, oneshot=True)
+            duration = rospy.Duration(random.uniform(*self.sleeping_time_range))
+            self.timer = rospy.Timer(duration, self.callback, oneshot=True)
         else:
             rospy.loginfo("It's time to wake up!")
-            self.timer = rospy.Timer(rospy.Duration(random.uniform(*self.awake_time_range)), self.callback, oneshot=True)
+            duration = rospy.Duration(random.uniform(*self.awake_time_range))
+            self.timer = rospy.Timer(duration, self.callback, oneshot=True)
+        self.next_callback = rospy.get_rostime() + duration
+
+    def seconds_till_sleep_or_wakeup(self):
+        return ( self.next_callback - rospy.get_rostime()).secs 
 
 class BallVisibleSubscriber:
     """Subscriber, that subscribes to the topic camera1/ball_visible
@@ -310,8 +322,97 @@ class FollowBallActionClient():
         else:
             return False
 
-def status_message_callback(timer):
-    rospy.loginfo("timer_callback")
+class StatusMessagePublisher:
+    def __init__(self, state_machine_top, state_machine_normal, state_machine_find, sleeping_timer, pet_command_server, state_play):
+        self.status_message_timer = rospy.Timer(rospy.Duration(1), self.status_message_callback)
+        self.pub_whatsup = rospy.Publisher("/what_is_going_on", WhatIsGoingOn, queue_size=10)
+        self.pub_room = rospy.Publisher("/room_info", Marker, queue_size=10)
+        self.state_machine_top = state_machine_top
+        self.state_machine_normal = state_machine_normal
+        self.state_machine_find = state_machine_find
+        self.sleeping_timer = sleeping_timer
+        self.pet_command_server = pet_command_server
+        self.state_play = state_play
+
+    def status_message_callback(self, timer):
+        # Create message What Is going on
+        msg = WhatIsGoingOn()
+        msg.state = self.state_machine_top.get_active_states()[0]
+        msg.substate_normal = self.state_machine_normal.get_active_states()[0]
+        msg.substate_find = self.state_machine_find.get_active_states()[0]
+        msg.room_info_0 = f"Color: {room_info.info[0].color}, name: {room_info.info[0].name}, x: {room_info.info[0].x}, y: {room_info.info[0].y}"
+        msg.room_info_1 = f"Color: {room_info.info[1].color}, name: {room_info.info[1].name}, x: {room_info.info[1].x}, y: {room_info.info[1].y}"
+        msg.room_info_2 = f"Color: {room_info.info[2].color}, name: {room_info.info[2].name}, x: {room_info.info[2].x}, y: {room_info.info[2].y}"
+        msg.room_info_3 = f"Color: {room_info.info[3].color}, name: {room_info.info[3].name}, x: {room_info.info[3].x}, y: {room_info.info[3].y}"
+        msg.room_info_4 = f"Color: {room_info.info[4].color}, name: {room_info.info[4].name}, x: {room_info.info[4].x}, y: {room_info.info[4].y}"
+        msg.room_info_5 = f"Color: {room_info.info[5].color}, name: {room_info.info[5].name}, x: {room_info.info[5].x}, y: {room_info.info[5].y}"
+        msg.sleep_timer_info = f"Wake up in {sleeping_timer.seconds_till_sleep_or_wakeup()} s" if sleeping_timer.time_to_sleep else f"Sleeping time in {sleeping_timer.seconds_till_sleep_or_wakeup()} s"
+        msg.last_command = f"Command: {self.pet_command_server._command.command}, room: {self.pet_command_server._command.room}"
+        msg.game_info = f"Played {state_play.number_games} out of {state_play.games_to_play} games"
+        self.pub_whatsup.publish(msg)
+
+        #Create message room_info (Markers for rviz)
+        for i, room in enumerate(room_info.info):
+            if room.positions_known():
+                #Ball
+                marker = Marker()
+                marker.header.frame_id = "map"
+                marker.ns = "balls"
+                marker.id = i
+                marker.type = Marker.SPHERE
+                marker.action = Marker.ADD
+                marker.pose.position.x = room.x
+                marker.pose.position.y = room.y
+                marker.pose.position.z = 0.5
+                marker.pose.orientation.x = 0.
+                marker.pose.orientation.y = 0.
+                marker.pose.orientation.z = 0.
+                marker.pose.orientation.z = 1.
+
+                marker.color.r = room.r
+                marker.color.g = room.g
+                marker.color.b = room.b
+                marker.color.a = 1.0
+
+                
+                marker.scale.x = 1
+                marker.scale.y = 1
+                marker.scale.z = 1
+
+                marker.lifetime = rospy.Duration()
+
+                self.pub_room.publish(marker)
+
+                #Text
+                marker = Marker()
+                marker.header.frame_id = "map"
+                marker.ns = "captions"
+                marker.id = i+10
+                marker.type = Marker.TEXT_VIEW_FACING
+                marker.action = Marker.ADD
+                marker.pose.position.x = room.x
+                marker.pose.position.y = room.y
+                marker.pose.position.z = 1.5
+                marker.pose.orientation.x = 0.
+                marker.pose.orientation.y = 0.
+                marker.pose.orientation.z = 0.
+                marker.pose.orientation.z = 1.
+
+                marker.color.r = 0.
+                marker.color.g = 0.
+                marker.color.b = 0.
+                marker.color.a = 1.0
+
+                
+                marker.scale.x = 1.0
+                marker.scale.y = 1.0
+                marker.scale.z = 1.0
+
+                marker.text = room.name
+
+                marker.lifetime = rospy.Duration()
+
+                self.pub_room.publish(marker)
 
 if __name__ == "__main__":
     """Main function of this script
@@ -327,15 +428,14 @@ if __name__ == "__main__":
     follow_ball_action_client = FollowBallActionClient()
     ball_visible_subscriber = BallVisibleSubscriber()
 
-    status_message_timer = rospy.Timer(rospy.Duration(1), status_message_callback)
-
     # Create a SMACH state machine
     sm_top = smach.StateMachine(outcomes=[])
 
     # Open the container
     with sm_top:
 
-        sm_normal = smach.StateMachine(outcomes=['normal_cmd_play','normal_sleeping_time'])
+        sm_normal = smach.StateMachine(outcomes=['normal_cmd_play','normal_sleeping_time'],
+                                       output_keys=['init_games'])
         # Add states to the container
         with sm_normal:
 
@@ -354,13 +454,15 @@ if __name__ == "__main__":
         smach.StateMachine.add('SLEEP', states.Sleep(pet_command_server, set_target_action_client, sleeping_timer), 
                                transitions={'slept_enough':'NORMAL'})
 
-        smach.StateMachine.add('PLAY', states.Play(pet_command_server, set_target_action_client, sleeping_timer), 
+        state_play = states.Play(pet_command_server, set_target_action_client, sleeping_timer)
+        smach.StateMachine.add('PLAY', state_play, 
                                transitions={'played_enough':'NORMAL',
                                             'sleeping_time':'SLEEP',
                                             'find':'FIND' })
 
         sm_find = smach.StateMachine(outcomes=['find_target_location_found','find_sleeping_time'],
-                                     input_keys=['find_color']) 
+                                     input_keys=['find_color'],
+                                     output_keys=['init_games']) 
         # Add states to the container
         with sm_find:
 
@@ -378,10 +480,7 @@ if __name__ == "__main__":
                                             'find_sleeping_time':'SLEEP'})
                             
 
-
-    # Create and start the introspection server
-    sis = smach_ros.IntrospectionServer('server_name', sm_top, '/SM_ROOT')
-    sis.start() 
+    status_message_publisher = StatusMessagePublisher(sm_top, sm_normal, sm_find, sleeping_timer, pet_command_server, state_play)
 
     # Execute SMACH plan
     outcome = sm_top.execute()

@@ -16,6 +16,8 @@ Panels:
         - /Path1
         - /Path2
         - /Pose1
+        - /Marker1
+        - /Marker1/Status1
       Splitter Ratio: 0.5
     Tree Height: 470
   - Class: rviz/Selection
@@ -73,6 +75,10 @@ Visualization Manager:
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
         camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        head_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -206,6 +212,8 @@ Visualization Manager:
         All Enabled: true
         camera_link:
           Value: true
+        head_link:
+          Value: true
         laser_link:
           Value: true
         link_castor_axis:
@@ -249,7 +257,9 @@ Visualization Manager:
               link_right_wheel:
                 {}
               neck_link:
-                camera_link:
+                head_link:
+                  camera_link:
+                    {}
                   laser_link:
                     {}
       Update Interval: 0
@@ -335,6 +345,15 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /room_info
+      Name: Marker
+      Namespaces:
+        balls: true
+        captions: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -379,9 +398,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1103986501693726
+      Pitch: 0.845399022102356
       Target Frame: <Fixed Frame>
-      Yaw: 3.180410385131836
+      Yaw: 3.3954100608825684
     Saved: ~
 Window Geometry:
   Displays:

@@ -61,6 +61,7 @@ add_message_files(
   BallCenterRadius.msg
   BallVisible.msg
   Point2d.msg
+  WhatIsGoingOn.msg
 )
 
 ## Generate services in the 'srv' folder
