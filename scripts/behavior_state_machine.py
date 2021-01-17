@@ -61,6 +61,7 @@ class PetCommandServer:
         rospy.loginfo("Ready to receive commands.")
         self._new_command_available = False 
         self._command = PetCommandRequest()    #Make variables private, so that get_new_command() has to be used
+        self._command_processing = PetCommandRequest()
 
 
     def handle_command(self, req):
@@ -100,7 +101,11 @@ class PetCommandServer:
         self._new_command_available = False
         return self._command
 
+    def process_command(self):
+        self._command_processing = self._command
 
+    def processing_command_done(self):
+        self._command_processing = PetCommandRequest()  #Empty
 
 
 
@@ -193,8 +198,8 @@ class SleepingTimer():
     def __init__(self):
         """Initialize attributes
         """
-        self.sleeping_time_range = (10, 15)  #Sleep between 10 and 15 seconds
-        self.awake_time_range = (20, 30)  #Be awake for ...
+        self.sleeping_time_range = (rospy.get_param("/sleeping_time_min"), rospy.get_param("/sleeping_time_max")) 
+        self.awake_time_range = (rospy.get_param("/awake_time_min"), rospy.get_param("/awake_time_max")) 
         self.time_to_sleep = False
         if (rospy.get_param("/run_sleeping_timer")):
             duration = rospy.Duration(random.uniform(*self.awake_time_range))
@@ -337,18 +342,22 @@ class StatusMessagePublisher:
     def status_message_callback(self, timer):
         # Create message What Is going on
         msg = WhatIsGoingOn()
-        msg.state = self.state_machine_top.get_active_states()[0]
-        msg.substate_normal = self.state_machine_normal.get_active_states()[0]
-        msg.substate_find = self.state_machine_find.get_active_states()[0]
+        msg.state___________________ = self.state_machine_top.get_active_states()[0]
+        msg.substate_normal_________ = self.state_machine_normal.get_active_states()[0]
+        msg.substate_find___________ = self.state_machine_find.get_active_states()[0]
+        msg.sleep_timer_info________ = f"Now its time to sleep. Wake up in {sleeping_timer.seconds_till_sleep_or_wakeup()} s" if sleeping_timer.time_to_sleep else f"Now its time to be awake. Sleeping time in {sleeping_timer.seconds_till_sleep_or_wakeup()} s"
+        msg.last_command____________ = f"Command: {self.pet_command_server._command.command}, room: {self.pet_command_server._command.room}"
+        msg.command_processing______ = f"Command: {self.pet_command_server._command_processing.command}, room: {self.pet_command_server._command_processing.room}"
+        msg.PLAY_game_info__________ = f"Played {state_play.number_games} out of {state_play.games_to_play} games"
+        msg.PLAY_waiting_for_command = state_play.waiting_for_target_command
+
         msg.room_info_0 = f"Color: {room_info.info[0].color}, name: {room_info.info[0].name}, x: {room_info.info[0].x}, y: {room_info.info[0].y}"
         msg.room_info_1 = f"Color: {room_info.info[1].color}, name: {room_info.info[1].name}, x: {room_info.info[1].x}, y: {room_info.info[1].y}"
         msg.room_info_2 = f"Color: {room_info.info[2].color}, name: {room_info.info[2].name}, x: {room_info.info[2].x}, y: {room_info.info[2].y}"
         msg.room_info_3 = f"Color: {room_info.info[3].color}, name: {room_info.info[3].name}, x: {room_info.info[3].x}, y: {room_info.info[3].y}"
         msg.room_info_4 = f"Color: {room_info.info[4].color}, name: {room_info.info[4].name}, x: {room_info.info[4].x}, y: {room_info.info[4].y}"
         msg.room_info_5 = f"Color: {room_info.info[5].color}, name: {room_info.info[5].name}, x: {room_info.info[5].x}, y: {room_info.info[5].y}"
-        msg.sleep_timer_info = f"Wake up in {sleeping_timer.seconds_till_sleep_or_wakeup()} s" if sleeping_timer.time_to_sleep else f"Sleeping time in {sleeping_timer.seconds_till_sleep_or_wakeup()} s"
-        msg.last_command = f"Command: {self.pet_command_server._command.command}, room: {self.pet_command_server._command.room}"
-        msg.game_info = f"Played {state_play.number_games} out of {state_play.games_to_play} games"
+
         self.pub_whatsup.publish(msg)
 
         #Create message room_info (Markers for rviz)
@@ -467,7 +476,7 @@ if __name__ == "__main__":
         with sm_find:
 
             # Add states to the container 
-            smach.StateMachine.add('FIND_DEFAULT', states.Find(ball_visible_subscriber), 
+            smach.StateMachine.add('FIND_DEFAULT', states.Find(ball_visible_subscriber, sleeping_timer), 
                                transitions={'target_location_found':'find_target_location_found', 
                                             'sleeping_time':'find_sleeping_time',
                                             'track':'FIND_TRACK'})

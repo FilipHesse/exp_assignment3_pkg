@@ -1,12 +1,15 @@
-string state
-string substate_normal
-string substate_find
+string state___________________
+string substate_normal_________
+string substate_find___________
+string sleep_timer_info________
+string last_command____________
+string command_processing______
+string PLAY_game_info__________
+bool PLAY_waiting_for_command
+
 string room_info_0
 string room_info_1
 string room_info_2
 string room_info_3
 string room_info_4
 string room_info_5
-string sleep_timer_info
-string last_command
-string game_info

@@ -88,6 +88,7 @@ class Normal(smach.State):
             if self.pet_command_server.is_new_command_available():
                 cmd = self.pet_command_server.get_new_command()
                 if cmd.command == 'play' :
+                    self.pet_command_server.process_command()
                     # Abort all current goals
                     self.set_target_action_client.client.cancel_all_goals()
                     userdata.init_games = True
@@ -233,6 +234,7 @@ class Play(smach.State):
         self.sleeping_timer = sleeping_timer
         self.number_games = 0
         self.games_to_play = 0
+        self.waiting_for_target_command = False
         #self.pub = rospy.Publisher('pointer_position', Point2dOnOff, queue_size=10) #define this publisher only here, because pointer position is not needed anywhere else
 
     def execute(self, userdata):
@@ -285,9 +287,11 @@ class Play(smach.State):
                 rospy.loginfo("Previous commands were ignored, because robot was not ready to receive commands")
             
             valid_target = False
+            self.pet_command_server.processing_command_done()
             #Check commands until a valid one comes in (go to)
             while not valid_target:
                 #Wait for command
+                self.waiting_for_target_command = True
                 while not self.pet_command_server.is_new_command_available():
                     rate.sleep()
 
@@ -296,9 +300,17 @@ class Play(smach.State):
                     rospy.loginfo("Robot is already playing")
 
                 if cmd.command =='go_to':
+                    self.pet_command_server.process_command()
                     valid_target = True
                     room_name = cmd.room
 
+                #Check if time to sleep
+                if self.sleeping_timer.time_to_sleep:
+                    rospy.loginfo("I am tired. Good night!")
+                    self.waiting_for_target_command = False
+                    return 'sleeping_time'
+
+            self.waiting_for_target_command = False
             target_room_info = room_info.get_room_info_by_name(room_name)
 
             if target_room_info.positions_known():
@@ -311,17 +323,24 @@ class Play(smach.State):
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
                 rate.sleep()
+
+            
+            #Remain 2 seconds in target position
+            rospy.sleep(2.)
             
             #Go To Person
             self.set_target_action_client.call_action(rospy.get_param("/user_x"),rospy.get_param("/user_y"))
             
+            #Check if played enough
+            self.number_games += 1
+            if self.games_to_play == self.number_games:
+                rospy.loginfo("I played {} games. This is enough".format(self.number_games))
+                return 'played_enough'
+
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
                 rate.sleep()
-            #Check if time to sleep
-            if self.sleeping_timer.time_to_sleep:
-                rospy.loginfo("I am tired. Good night!")
-                return 'sleeping_time'
+
 
             #Check if played enough
             self.number_games += 1
@@ -397,7 +416,7 @@ class Track(smach.State):
                 self.rate.sleep()
 
 class Find(smach.State):
-    def __init__(self, ball_visible_subscriber):
+    def __init__(self, ball_visible_subscriber, sleeping_timer):
         smach.State.__init__(self, outcomes=['target_location_found', 'sleeping_time', 'track'],
                                    input_keys=['find_color'],
                                    output_keys=['track_color','init_games'])
@@ -405,7 +424,7 @@ class Find(smach.State):
         self.ball_visible_subscriber = ball_visible_subscriber
         self.explore_start = rospy.ServiceProxy('/explore/start', Empty)
         self.explore_stop = rospy.ServiceProxy('/explore/stop', Empty)
-        #self.find_color
+        self.sleeping_timer = sleeping_timer
 
         hz = 10
         self.rate = rospy.Rate(hz)
@@ -439,6 +458,12 @@ class Find(smach.State):
         while( True ):
             #Seeing unknown ball?
             #-> Go to track
+
+            #Check if time to sleep
+            if self.sleeping_timer.time_to_sleep:
+                rospy.loginfo("I am tired. Good night!")
+                return 'sleeping_time'
+
             if self.ball_visible_subscriber.is_ball_visible() and not room_info.is_color_known(self.ball_visible_subscriber.color):
                 rospy.loginfo(f"An unknown ball ({self.ball_visible_subscriber.color})was detected")
                 #stop exploring

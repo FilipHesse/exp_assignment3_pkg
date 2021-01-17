@@ -48,7 +48,7 @@ def pet_command_client():
 
             #Each fivth command is play, the other commands are go_to a random
             #place within the range
-            if (counter % 5) == 2:  # 2 because we do not want the very first command to be a play command
+            if (counter % rospy.get_param("/n_commands_till_play_command")) == rospy.get_param("/n_commands_till_play_command")-1:  #After n_commands_till_play_command first time play command
                 request.command = "play"
                 request.room = "" #Room does not matter
             else:
@@ -65,7 +65,7 @@ def pet_command_client():
         counter += 1
 
         #Wait for a random time between 0.5 and 5 seconds 
-        rospy.sleep(random.uniform(0.5, 5))
+        rospy.sleep(random.uniform(rospy.get_param("/time_between_commands_min"), rospy.get_param("/time_between_commands_max")))
 
 
 if __name__ == "__main__":

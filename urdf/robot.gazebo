@@ -9,10 +9,13 @@
   <gazebo reference="link_castor_axis">
     <material>Gazebo/Orange</material>
   </gazebo>
+  <gazebo reference="link_castor_axis2">
+    <material>Gazebo/Orange</material>
+  </gazebo>
   <gazebo reference="neck_link">
     <material>Gazebo/Orange</material>
   </gazebo>
-  <gazebo reference="camera_link">
+  <gazebo reference="head_link">
     <material>Gazebo/Blue</material>
   </gazebo>
   <gazebo reference="link_left_wheel">
@@ -24,6 +27,9 @@
   <gazebo reference="link_castor_wheel">
     <material>Gazebo/Blue</material>
   </gazebo>
+  <gazebo reference="link_castor_wheel2">
+    <material>Gazebo/Blue</material>
+  </gazebo>
 
   <gazebo>
     <plugin filename="libgazebo_ros_diff_drive.so" name="differential_drive_controller">
@@ -32,8 +38,8 @@
       <updateRate>20</updateRate>
       <leftJoint>joint_left_wheel</leftJoint>
       <rightJoint>joint_right_wheel</rightJoint>
-      <wheelSeparation>0.2</wheelSeparation>
-      <wheelDiameter>0.2</wheelDiameter>
+      <wheelSeparation>0.24</wheelSeparation>
+      <wheelDiameter>0.1</wheelDiameter>
       <torque>0.01</torque>
       <commandTopic>cmd_vel</commandTopic>
       <odometryTopic>odom</odometryTopic>
