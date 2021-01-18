@@ -42,8 +42,8 @@
   <param name="run_sleeping_timer" value="True" />
   <param name="sleeping_time_min" value="40" />
   <param name="sleeping_time_max" value="60" />
-  <param name="awake_time_min" value="120" />
-  <param name="awake_time_max" value="210" />
+  <param name="awake_time_min" value="180" />
+  <param name="awake_time_max" value="240" />
 
   <!-- Simulated UI cfg-->
   <param name="time_between_commands_min" value="2" />

@@ -307,6 +307,7 @@ class Play(smach.State):
                 #Check if time to sleep
                 if self.sleeping_timer.time_to_sleep:
                     rospy.loginfo("I am tired. Good night!")
+                    self.pet_command_server.processing_command_done()
                     self.waiting_for_target_command = False
                     return 'sleeping_time'
 
@@ -322,6 +323,12 @@ class Play(smach.State):
             
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
+                #Check if time to sleep
+                if self.sleeping_timer.time_to_sleep:
+                    rospy.loginfo("I am tired. Good night!")
+                    self.pet_command_server.processing_command_done()
+                    self.waiting_for_target_command = False
+                    return 'sleeping_time'
                 rate.sleep()
 
             
@@ -330,15 +337,15 @@ class Play(smach.State):
             
             #Go To Person
             self.set_target_action_client.call_action(rospy.get_param("/user_x"),rospy.get_param("/user_y"))
-            
-            #Check if played enough
-            self.number_games += 1
-            if self.games_to_play == self.number_games:
-                rospy.loginfo("I played {} games. This is enough".format(self.number_games))
-                return 'played_enough'
 
             #Wait until position reached
             while not self.set_target_action_client.ready_for_new_target:
+                #Check if time to sleep
+                if self.sleeping_timer.time_to_sleep:
+                    rospy.loginfo("I am tired. Good night!")
+                    self.pet_command_server.processing_command_done()
+                    self.waiting_for_target_command = False
+                    return 'sleeping_time'
                 rate.sleep()
 
 
@@ -361,7 +368,7 @@ class Track(smach.State):
 
         hz = 10
         self.rate = rospy.Rate(hz)
-        no_ball_seconds = 3
+        no_ball_seconds = 1
         self.iterations_no_ball = no_ball_seconds * hz
 
     def execute(self, userdata):
@@ -382,6 +389,12 @@ class Track(smach.State):
             # ball moved away again
             if counter_no_ball >= self.iterations_no_ball:
                 rospy.loginfo("lost ball while tracking => abort tracking")
+                self.cancel_goal_and_wait_till_done()
+                return 'tracking_done'
+
+            # Seeing different color => leave tracking
+            if not self.ball_visible_subscriber.color == userdata.ball_color:
+                rospy.loginfo("Seeing ball of different color")
                 self.cancel_goal_and_wait_till_done()
                 return 'tracking_done'
 
@@ -441,10 +454,8 @@ class Find(smach.State):
         except NameError:
             pass
 
-        
-
+    
         #Do I already know the location of this color?
-        target_room = room_info.get_room_info_by_color(self.find_color)
         if room_info.is_color_known(self.find_color):
             rospy.loginfo(f'Position of the {self.find_color} ball in known now! Go back to play state')
             userdata.init_games = False
@@ -462,6 +473,9 @@ class Find(smach.State):
             #Check if time to sleep
             if self.sleeping_timer.time_to_sleep:
                 rospy.loginfo("I am tired. Good night!")
+                #stop exploring
+                req = EmptyRequest()
+                self.explore_stop.call(req)
                 return 'sleeping_time'
 
             if self.ball_visible_subscriber.is_ball_visible() and not room_info.is_color_known(self.ball_visible_subscriber.color):
