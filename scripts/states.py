@@ -18,15 +18,26 @@ from actionlib_msgs.msg import GoalID, GoalStatus
 class Normal(smach.State):
     """Defines the Smach-state NORMAL
 
-    In this state the robot goes from one random target to another
+    In this state the robot goes from one random target to another. A random target within the 
+    map dimensions is chosen. If the target is in free space, then it will be the new goal to
+    move_base, else a new random target will be chosen until it is in free space. If the robot
+    sees a ball, that is has not seen before, it switches to the substate NORMAL_TRACK.
 
     Attributes:
         get_position_client (GetPositionClient): Service client to get position of an object
         pet_command_server (PetCommandServer): Allows accessing the last command from the user
         set_target_action_client (SetTargetActionClient): Action client to set a new target position
         sleeping_timer (SleepingTimer): Allows checking if it is time to sleep
-        map_width (int): Width of map to choose appropriate target positions
-        map_height (int): Height of map to choose appropriate target positions
+        ball_visible_subscriber (BallVisibleSubscriber): Subscriber to get information if a ball is 
+                                                         visible (and which color it has) 
+        map_width (float): Width of map to choose appropriate target positions
+        map_height (float): Height of map to choose appropriate target positions
+        map_resolution (float): Resolution of the map
+        map_orig_x (float): Origin of map in x
+        map_orig_y (float): Origin of map in y
+        costmap (np.array): Costmap (to check if target position if in free space)
+        costmap_subscriber(rospy.Subscriber): Subscribe to costmap
+        costmap_update_subscriber(rospy.Subscriber): Subscribe to costmap_update
     """
 
     def __init__(self, pet_command_server, set_target_action_client, sleeping_timer, ball_visible_subscriber):
@@ -37,6 +48,7 @@ class Normal(smach.State):
             pet_command_server (PetCommandServer): See class description
             set_target_action_client (SetTargetActionClient): See class description
             sleeping_timer (SleepingTimer): See class description
+            ball_visible_subscriber (BallVisibleSubscriber): See class description
         """
 
         smach.State.__init__(self, outcomes=['cmd_play','sleeping_time','track'],
@@ -52,6 +64,8 @@ class Normal(smach.State):
         self.costmap = np.array([])
 
     def callback_costmap(self, msg):
+        """Callback of costmap subscriber
+        """
         self.map_width = msg.info.width
         self.map_height = msg.info.height
         self.map_resolution = msg.info.resolution
@@ -60,6 +74,8 @@ class Normal(smach.State):
         self.costmap = np.array(msg.data).reshape(self.map_height, self.map_width)
 
     def callback_costmap_update(self, msg):
+        """Callback of costmap_update subscriber
+        """
         self.map_width = msg.width
         self.map_height = msg.height
         self.costmap = np.array(msg.data).reshape(self.map_height, self.map_width)
@@ -125,6 +141,15 @@ class Normal(smach.State):
             rate.sleep()
 
     def is_costmap_free(self, x, y):
+        """Checks if the cost in the costmap at the desires position == 0 (FREE)
+
+        Args:
+            x (float): x-position
+            y (float): y-position
+
+        Returns:
+            bool: true if costmap is free
+        """
         x_idx = int((x - self.map_orig_x)/self.map_resolution)
         y_idx = int((y - self.map_orig_y)/self.map_resolution)
 
@@ -138,7 +163,7 @@ class Normal(smach.State):
 class Sleep(smach.State):
     """Defines the Smach-state SLEEP
 
-    In this state the robot goes to the house and stay there until sleeping time is over
+    In this state the robot goes to the house and stays there until sleeping time is over
 
     Attributes:
         get_position_client (GetPositionClient): Service client to get position of an object
@@ -204,10 +229,11 @@ class Play(smach.State):
     In this state the robot performs the following actions in a loop:
     1) Go to user
     2) Wait for a command that specifies a new target
-    3) Go to new target
+        a) Target known => Go to new target
+        b) Target unknown => Go to state find
     Repeat
 
-    The game is repeated for a randum number of times between 1 and 3
+    The game is repeated for a randum number of times between 2 and 4
 
     Attributes:
         get_position_client (GetPositionClient): Service client to get position of an object
@@ -243,14 +269,11 @@ class Play(smach.State):
         In this state the robot performs the following actions in a loop:
         1) Go to user
         2) Wait for a command that specifies a new target
-        3) Go to new target 
+        3) Go to new target or switch to find state
         4) Go back to person
         
-        This function implements these steps and braks them down into smaller
-        substeps Details can be viewed inside the code, which is commented. It
-        is only checked at the end of each game (after going back to the
-        person), if it is time to go to sleep or if the number of games to be
-        played (random between 2 and 4) has been reached.
+        This function implements these steps and breaks them down into smaller
+        substeps Details can be viewed inside the code, which is commented. 
 
         Args:
             userdata (---): unused
@@ -358,7 +381,15 @@ class Play(smach.State):
             rate.sleep()
 
 class Track(smach.State):
+    """Implements the smach-state TRACK to approach a ball by visual servoing
+
+    This state simply calls an action client follow_ball_action_client, that
+    will activate a node, which performs visual servoing. When the action
+    returns successfull, the state track is left
+    """
     def __init__(self, ball_visible_subscriber, follow_ball_action_client):
+        """Constructor
+        """
         self.ball_visible_subscriber = ball_visible_subscriber
         self.follow_ball_action_client = follow_ball_action_client
         smach.State.__init__(self, outcomes=['tracking_done'],
@@ -372,6 +403,10 @@ class Track(smach.State):
         self.iterations_no_ball = no_ball_seconds * hz
 
     def execute(self, userdata):
+        """Function gets called, when state is active
+
+        (see class description)
+        """
         rospy.loginfo('----------------------------------------------\n------------------------------ ENTERING STATE TRACK ---\n--------------------------------------------------------------------------')
 
         counter_no_ball = 0
@@ -429,7 +464,23 @@ class Track(smach.State):
                 self.rate.sleep()
 
 class Find(smach.State):
+    """Implements the smach-state FIND to explore the map and find an unknown
+    ball
+
+    This state just activates the explore_lite node by calling a service
+    /explore/start (the explore_lite node has been adapted to provide two
+    services). Then explore_lite will start exploring the area. When an unknown
+    ball is seen (ball_visible_subscriber tells us), we switch to the mode track
+    after disabling explore_lite by the service /explore/stop. When track is
+    done, we get back to this state. If the state TRACK has updated the
+    room_info and we now know the position of the desired ball, we leave this
+    state and go to PLAY again. If we still don't know the position of the
+    desired ball, then explore_lite will simply be activated again to continue
+    the search/exploration
+    """
     def __init__(self, ball_visible_subscriber, sleeping_timer):
+        """Constructor
+        """
         smach.State.__init__(self, outcomes=['target_location_found', 'sleeping_time', 'track'],
                                    input_keys=['find_color'],
                                    output_keys=['track_color','init_games'])
@@ -443,6 +494,10 @@ class Find(smach.State):
         self.rate = rospy.Rate(hz)
 
     def execute(self, userdata):
+        """This function is running, when the state is active
+
+        For explanations see the class description
+        """
         rospy.loginfo('----------------------------------------------\n------------------------------ ENTERING STATE FIND ---\n--------------------------------------------------------------------------')
 
         #Which color am I trying to find?

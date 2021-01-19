@@ -22,6 +22,10 @@ class BallFollower:
     velocity such that the ball will be located in the image center with a
     specified size (-> distance)
 
+    Note: No obstacle avoidance is implemented! We assume, that there are no 
+    obstacles in the way, if we can see the ball, which is strictly speaking
+    not always true.    
+
     This node contains 4 ROS communication interfaces:
         pub_cmd_vel: Publisher to topic "cmd_vel"
         sub_ball: Subscriber to topic "camera1/ball_center_radius"
@@ -78,7 +82,7 @@ class BallFollower:
                     #rospy.loginfo("Not aligned")
                     vel.angular.z = 0.004*(400 - self.ball_center_x)
 
-                desired_radius = 105
+                desired_radius = 80
                 # We are aligned but too far or too close
                 if abs(self.ball_center_x-400) < 40 and abs(desired_radius - self.ball_radius) > 10:
                     #rospy.loginfo("Wrong distance")

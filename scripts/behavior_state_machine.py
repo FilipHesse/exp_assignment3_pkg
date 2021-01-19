@@ -1,21 +1,32 @@
 #!/usr/bin/env python3
-"""Heart of robot_pet package: defines robots behavior
+"""Heart of exp_assignment3_pkg: defines robots behavior --- THE BRAIN ---
 
-Contains a finite state machine implemented in smach. The 3 states of the
-robot pet are NORMAL, PLAY and SLEEP. The state diagram can be found in the
-README.md of the project
+Contains a finite state machine implemented in smach. The 4 states of the robot
+pet are NORMAL, PLAY, SLEEP, FIND. The state normal has two substates
+(NORMAL_DEFAULT, NORMAL_TRACK), and the state FIND also has 2 FIND_TRACK). The
+state diagram can be found in the README.md of the project
 
-Each interface with the ROS infrastructure, such as service clients,
-servers, action clients and publishers are implemented within separate
-classes. All these interfaces are then passed to the smach-states while they
-are constructed, in order to make the interfaces accessible for the states.
+Each interface with the ROS infrastructure, such as service clients, servers,
+action clients and publishers are implemented within separate classes. All these
+interfaces are then passed to the smach-states while they are constructed, in
+order to make the interfaces accessible for the states.
+
+To clean up this noe a bit, all the state implementaions were oursourced to the
+python script states.py and the information about each room is written inside
+the file room_info.py. Both files are only accessed by this node.
 
     Requirements:
         The following parameters need to be set in the ros parameter server:
-            /map_width
-            /map_height
-        You can use the launchfile params.launch to set these to some 
-        default values
+            /house_x
+            /house_y
+            /user_x
+            /user_y
+            /run_sleeping_timer
+            /sleeping_time_min
+            /sleeping_time_max
+            /awake_time_min
+            /awake_time_max
+        For explanations about these parameters see the README.md
 """
 
 from __future__ import print_function
@@ -65,7 +76,7 @@ class PetCommandServer:
 
 
     def handle_command(self, req):
-        """Saves command to Atrributes and returns an empty response to caller
+        """CALLBACK: Saves command to Atrributes and returns an empty response to caller
 
         Args:
             req (PentCommandRequest): Service request containing a command and 
@@ -102,19 +113,20 @@ class PetCommandServer:
         return self._command
 
     def process_command(self):
+        """Mark a command as being processed (just for status output)
+        """
         self._command_processing = self._command
 
     def processing_command_done(self):
+        """Mark the command, that is being processed as Empty (no command is
+        processed anymore)
+        """ 
         self._command_processing = PetCommandRequest()  #Empty
 
 
 
 class SetTargetActionClient():
-    """Action client to set target position
-
-    An action client has been chosen, because it is a non blocking call. This
-    way, incoming commands can still be handeled properly and actions like
-    "sleep" will be processed right after the service call has finished.
+    """Action client to set target (goal) positionto the move_base node
 
     To use this class, only use the functions call_action() to set a new target
     and check the value ready_for_new_target to check if previous action was 
@@ -187,13 +199,17 @@ class SleepingTimer():
     Usage: Check the flag time_to_sleep to check if robot should be sleeping
     right now or if it should be awake
 
-    Attributes:
-        sleeping_time_range ((int, int)): Sleeping time will be random between 10
-            and 15 seconds
-        awake_time_range  ((int, int)): Awake time will be random between 20 and 30 seconds
-        time_to_sleep (bool): Flag for the user of this class to check if its time to sleep
-            (True) or time to be awake (False)
-        timer (rospy.Timer): Timer that triggers the callbacks
+    Attributes: 
+        sleeping_time_range ((int, int)): Sleeping time will be random
+            between rosparam(/sleeping_time_min) and rosparam(/sleeping_time_max) 
+            seconds 
+        awake_time_range((int, int)): Awake time will be random
+            between rosparam(/awake_time_min) and rosparam(/awake_time_max) 
+            seconds 
+        time_to_sleep (bool): Flag for the user of this class to check if its
+            time to sleep (True) or time to be awake (False)    
+        timer (rospy.Timer):
+            Timer that triggers the callbacks
     """
     def __init__(self):
         """Initialize attributes
@@ -230,7 +246,13 @@ class SleepingTimer():
         self.next_callback = rospy.get_rostime() + duration
 
     def seconds_till_sleep_or_wakeup(self):
+        """When will the timer callback be called again next time
+
+        Returns:
+           int: Seconds until robot should sleep or wake up 
+        """
         return ( self.next_callback - rospy.get_rostime()).secs 
+
 
 class BallVisibleSubscriber:
     """Subscriber, that subscribes to the topic camera1/ball_visible
@@ -247,7 +269,7 @@ class BallVisibleSubscriber:
         """Publisher callback
 
         Args:
-            msg (Bool): is ball visible
+            msg (BallVisible): is ball visible, and which color does it have
         """
         self.ball_visible = msg.visible.data
         self.color = msg.color.data
@@ -322,13 +344,26 @@ class FollowBallActionClient():
         return self.client.get_state() == GoalStatus.ACTIVE
 
     def done_successful(self):
+        """Has the action finished successfully?
+
+        Returns:
+            bool: Has ball been reached? 
+        """
         if self.client.get_state() == GoalStatus.SUCCEEDED:
             return True
         else:
             return False
 
 class StatusMessagePublisher:
+    """Publisher class, that publishes two very useful topics
+
+    1) /what_is_going_on publishes a couple of strings, that contain 
+        all the states, substates, sleep timer information, commands etc.
+    2) /room_info publishes markers of the rooms to be visualized in RVIZ
+    """
     def __init__(self, state_machine_top, state_machine_normal, state_machine_find, sleeping_timer, pet_command_server, state_play):
+        """Constructor
+        """
         self.status_message_timer = rospy.Timer(rospy.Duration(1), self.status_message_callback)
         self.pub_whatsup = rospy.Publisher("/what_is_going_on", WhatIsGoingOn, queue_size=10)
         self.pub_room = rospy.Publisher("/room_info", Marker, queue_size=10)
@@ -340,7 +375,21 @@ class StatusMessagePublisher:
         self.state_play = state_play
 
     def status_message_callback(self, timer):
-        # Create message What Is going on
+        """Publishes the topics /what_is_going_on and /room_info
+
+        Explanation of the elements of /what_is_going_on
+            state___________________: State of the main state machine (NORMAL, SLEEP, PLAY, FIND)
+            substate_normal_________: Substate of normal state (NORMAL_DEFAULT, NORMAL_TRACK), None if state not NORMAL
+            substate_find___________: Substate of find state (FIND_DEFAULT, FIND_TRACK), None if state not FIND
+            sleep_timer_info________: String: is it time to sleep or time to be awake? When will it be time to sleep/wake up?
+            last_command____________: Last command received by ui (or user via terminal), this does not mean, that this command 
+                                      is valid and will be processed. e.g "go_to" command will only be processed in the PLAY
+                                      state when the robot is actually in front of the user waiting for commands
+            command_processing______: The command, that is currently processed, is is the last command that came in in a valid 
+                                      moment
+            PLAY_game_info__________: How many games out of how many did we already play (only when in PLAY mode)
+            PLAY_waiting_for_command: Is the robot waiting for a go_to command?
+        """
         msg = WhatIsGoingOn()
         msg.state___________________ = self.state_machine_top.get_active_states()[0]
         msg.substate_normal_________ = self.state_machine_normal.get_active_states()[0]
@@ -427,7 +476,7 @@ if __name__ == "__main__":
     """Main function of this script
 
     Instanciates all classes, that have been defined above. Creates State
-    machine with all the states and spins for callbacks
+    machine with all the states and spins for callbacks (for states definitions see states.py)
     """
     rospy.init_node('behavior_state_machine')
 
