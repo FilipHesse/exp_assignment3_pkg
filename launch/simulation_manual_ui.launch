@@ -1,0 +1,109 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- these are the arguments you can pass this launch file, for example paused:=true -->
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="extra_gazebo_args" default=""/>
+  <arg name="gui" default="true"/>
+  <arg name="recording" default="false"/>
+  <arg name="world" default="house2_with_gazebo" />
+  <arg name="headless" default="false"/>
+  <arg name="debug" default="false"/>
+  <arg name="physics" default="ode"/>
+  <arg name="verbose" default="false"/>
+  <arg name="world_name" value="$(find exp_assignment3_pkg)/worlds/$(arg world).world"/>
+  <arg name="respawn_gazebo" default="false"/>
+  <arg name="use_clock_frequency" default="false"/>
+  <arg name="pub_clock_frequency" default="100"/>
+
+  <!-- set use_sim_time flag -->
+  <param name="/use_sim_time" value="$(arg use_sim_time)"/>
+
+  <!-- set command arguments -->
+  <arg unless="$(arg paused)" name="command_arg1" value=""/>
+  <arg if="$(arg paused)" name="command_arg1" value="-u"/>
+  <arg unless="$(arg recording)" name="command_arg2" value=""/>
+  <arg if="$(arg recording)" name="command_arg2" value="-r"/>
+  <arg unless="$(arg verbose)" name="command_arg3" value=""/>
+  <arg if="$(arg verbose)" name="command_arg3" value="--verbose"/>
+  <arg unless="$(arg debug)" name="script_type" value="gzserver"/>
+  <arg if="$(arg debug)" name="script_type" value="debug"/>
+
+  <!-- Configure House Position -->
+  <param name="house_x" value="-5." />
+  <param name="house_y" value="5." />
+
+  <!-- Configure User Position (for robot to go to)-->
+  <param name="user_x" value="-4.9" />
+  <param name="user_y" value="7.6" />
+
+  <!-- Sleeping Timer cfg-->
+  <param name="run_sleeping_timer" value="True" />
+  <param name="sleeping_time_min" value="40" />
+  <param name="sleeping_time_max" value="60" />
+  <param name="awake_time_min" value="180" />
+  <param name="awake_time_max" value="240" />
+
+  <!-- Simulated UI cfg-->
+  <param name="time_between_commands_min" value="2" />
+  <param name="time_between_commands_max" value="3" />
+  <param name="n_commands_till_play_command" value="20" />
+
+  
+
+  <!-- start gazebo server-->
+  <group if="$(arg use_clock_frequency)">
+    <param name="gazebo/pub_clock_frequency" value="$(arg pub_clock_frequency)" />
+  </group>
+  <node name="gazebo" pkg="gazebo_ros" type="$(arg script_type)" respawn="$(arg respawn_gazebo)" output="screen" args="$(arg command_arg1) $(arg command_arg2) $(arg command_arg3) -e $(arg physics) $(arg extra_gazebo_args) $(arg world_name)" />
+
+
+  <!-- start gazebo client -->
+  <group if="$(arg gui)">
+    <node name="gazebo_gui" pkg="gazebo_ros" type="gzclient" respawn="false" output="screen"/>
+  </group>
+
+  <!-- Load URDF descriptions-->
+  <param name="human_description1" textfile="$(find exp_assignment3_pkg)/urdf/human.urdf" />
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find exp_assignment3_pkg)/urdf/robot.xacro" />
+
+  <!-- Spawn Human and Robot-->
+  <node name="urdf_spawner_human1" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="-urdf -model human1 -param human_description1 -x -6 -y 8.5 -z 0.34 -R 0 -P 0 -Y -0.75"/>
+  <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="-urdf -model robot -param robot_description -x -5 -y 8 -Y -1.57 -z 0.05"/>
+
+  <!-- Config and load camera/head controller-->
+  <!-- <rosparam file="$(find exp_assignment3_pkg)/config/motors_config.yaml" command="load" />
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" output="screen" args="joint_state_controller camera_position_controller"/>
+  <node name="camera_controller" pkg="exp_assignment3_pkg" type="camera_controller.py" output="screen" /> -->
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+
+  <!-- Launch RVIZ-->
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find exp_assignment3_pkg)/config/rviz_config.rviz"/>
+
+  <!-- Launch Ball Follower, Image Processor, UI-->
+  <node name="ball_follower" pkg="exp_assignment3_pkg" type="ball_follower.py" output="screen" />
+  <node name="image_processor" pkg="exp_assignment3_pkg" type="image_processor.py" output="screen" />
+  <!-- <node name="ui" pkg="exp_assignment3_pkg" type="ui.py" output="screen" /> -->
+
+  <!-- Gmapping -->
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen">
+    <rosparam command="load" file="$(find exp_assignment3_pkg)/config/gmapping_params.yaml" />
+  </node>
+
+  <!-- Move Base-->
+  <include file="$(find exp_assignment3_pkg)/launch/move_base.launch" pass_all_args="true"/>
+
+  <!-- Explore_lite-->
+  <include file="$(find explore_lite)/launch/explore.launch" pass_all_args="true"/>
+
+  <!-- Behavior state machine -->
+  <node name="state_machine" pkg="exp_assignment3_pkg" type="behavior_state_machine.py" output="screen" />
+
+</launch>
+
+
+
+
